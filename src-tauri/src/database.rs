@@ -16,6 +16,21 @@ impl Database {
         Self { pool }
     }
 
+    /// An in-memory database for tests.
+    ///
+    /// `max_connections(1)` matters: each pool connection gets its own in-memory
+    /// database, so a migration would otherwise land on a connection the test never
+    /// queries.
+    #[cfg(test)]
+    pub async fn in_memory() -> Self {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open in-memory sqlite");
+        Self { pool }
+    }
+
     pub async fn migrate(&self) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -174,16 +189,9 @@ async fn add_column_if_missing(pool: &SqlitePool, sql: &str) -> Result<(), sqlx:
 mod tests {
     use super::*;
 
-    /// In-memory SQLite. `max_connections(1)` matters: each pool connection gets
-    /// its own in-memory database, so a migration would otherwise land on a
-    /// connection the test never queries.
+    /// In-memory SQLite, shared with the retention tests.
     async fn test_db() -> Database {
-        let pool = sqlx::sqlite::SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
-            .await
-            .expect("open in-memory sqlite");
-        Database { pool }
+        Database::in_memory().await
     }
 
     async fn insert_clip(db: &Database, uuid: &str) {

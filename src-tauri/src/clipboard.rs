@@ -584,6 +584,10 @@ async fn process_clipboard_change(
     let manager = app.state::<Arc<SettingsManager>>();
     let settings = manager.get();
 
+    // Copied out as plain numbers so they stay available after `settings` has been
+    // used further down for the ignore list.
+    let retention = (settings.auto_delete_days, settings.max_items);
+
     if settings.ignore_ghost_clips && !is_explicit_owner {
         log::info!("CLIPBOARD: Ignoring ghost clip (unknown owner)");
         return;
@@ -798,6 +802,18 @@ async fn process_clipboard_change(
         }),
     );
     let emit_ms = emit_started.elapsed().as_millis();
+
+    // Retention runs on every ingest so the history cannot drift past its limit during
+    // a session. The guard inside `prune` keeps this cheap when nothing is over.
+    match crate::retention::prune(pool, retention.0, retention.1).await {
+        Ok(report) if report.total() > 0 => {
+            log::info!("Retention: removed {} clip(s)", report.total());
+            // The window still has the pruned clips in its list.
+            let _ = app.emit("clipboard-change", ());
+        }
+        Ok(_) => {}
+        Err(e) => log::error!("Retention failed: {e}"),
+    }
 
     log::info!(
         "[perf][clipboard_ingest] type={} existing={} full_bytes={} thumb_bytes={} image_read_ms={} decode_ms={} text_read_ms={} db_lookup_ms={} db_write_ms={} emit_ms={} total_ms={}",

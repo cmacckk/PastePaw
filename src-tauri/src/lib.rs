@@ -23,6 +23,7 @@ mod commands;
 mod constants;
 mod database;
 mod models;
+mod retention;
 mod settings_commands;
 mod settings_manager;
 pub mod updater;
@@ -211,6 +212,33 @@ pub fn run_app() {
             });
             app.manage(Arc::new(settings_manager));
 
+            // Apply the retention policy once at startup, before the window can show
+            // anything. Logged at info level because the first run after this setting
+            // starts being enforced can remove a large amount of accumulated history
+            // in one go.
+            {
+                let retention_settings = app.state::<Arc<SettingsManager>>().get();
+                let pool_for_retention = db_arc.pool.clone();
+                get_runtime().unwrap().block_on(async move {
+                    match retention::prune(
+                        &pool_for_retention,
+                        retention_settings.auto_delete_days,
+                        retention_settings.max_items,
+                    )
+                    .await
+                    {
+                        Ok(report) if report.total() > 0 => log::info!(
+                            "Retention: removed {} clip(s) ({} expired, {} over the item limit)",
+                            report.total(),
+                            report.by_age,
+                            report.by_count
+                        ),
+                        Ok(_) => log::debug!("Retention: nothing to remove"),
+                        Err(e) => log::error!("Retention failed: {e}"),
+                    }
+                });
+            }
+
             // Initialize Update Manager and start background check loop
             let update_manager = Arc::new(updater::UpdateManager::new());
             update_manager.start_background_loop(app.handle().clone());
@@ -358,7 +386,8 @@ pub fn run_app() {
             commands::refresh_window,
             commands::get_available_update,
             commands::check_update_now,
-            commands::install_update
+            commands::install_update,
+            commands::prune_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

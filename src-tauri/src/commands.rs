@@ -1022,6 +1022,35 @@ pub async fn get_clipboard_history_size(
     Ok(count)
 }
 
+/// Applies the retention policy right away and reports how many clips it removed.
+///
+/// The policy already runs at startup and on every ingest; this exists so the
+/// settings window can offer a "clean up now" action.
+#[tauri::command]
+pub async fn prune_history(
+    db: tauri::State<'_, Arc<Database>>,
+    window: tauri::WebviewWindow,
+) -> Result<i64, String> {
+    let settings = window.state::<Arc<SettingsManager>>().get();
+
+    let report =
+        crate::retention::prune(&db.pool, settings.auto_delete_days, settings.max_items).await?;
+
+    if report.total() > 0 {
+        // Whatever the window is showing still includes the pruned clips.
+        let _ = window.emit("clipboard-change", ());
+    }
+
+    log::info!(
+        "prune_history: removed {} clip(s) ({} expired, {} over the item limit)",
+        report.total(),
+        report.by_age,
+        report.by_count
+    );
+
+    Ok(report.total() as i64)
+}
+
 #[tauri::command]
 pub async fn clear_clipboard_history(db: tauri::State<'_, Arc<Database>>) -> Result<(), String> {
     let pool = &db.pool;
