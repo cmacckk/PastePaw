@@ -23,6 +23,8 @@
   },
   "folders": {
     "all": "全部",
+    "pinned": "收藏",
+    "savedInFolder": "已保存到文件夹",
     "addFolder": "添加文件夹",
     "createFolder": "创建文件夹",
     "renameFolder": "重命名文件夹",
@@ -147,6 +149,9 @@
   "notifications": {
     "clipDeleted": "剪贴已删除",
     "clipDeleteFailed": "删除剪贴失败",
+    "pinned": "已收藏",
+    "unpinned": "已取消收藏",
+    "pinFailed": "收藏操作失败",
     "folderDeleteFailed": "删除文件夹失败",
     "folderRenameFailed": "重命名文件夹失败",
     "copyFailed": "复制失败"

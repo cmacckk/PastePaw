@@ -23,6 +23,8 @@
   },
   "folders": {
     "all": "All Clips",
+    "pinned": "Pinned",
+    "savedInFolder": "Saved in a folder",
     "addFolder": "Add Folder",
     "createFolder": "Create Folder",
     "renameFolder": "Rename Folder",
@@ -147,6 +149,9 @@
   "notifications": {
     "clipDeleted": "Clip deleted",
     "clipDeleteFailed": "Failed to delete clip",
+    "pinned": "Saved to Pinned",
+    "unpinned": "Removed from Pinned",
+    "pinFailed": "Failed to update Pinned",
     "folderDeleteFailed": "Failed to delete folder",
     "folderRenameFailed": "Failed to rename folder",
     "copyFailed": "Failed to copy"

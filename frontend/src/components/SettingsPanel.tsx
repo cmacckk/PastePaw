@@ -1099,7 +1099,9 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                               <>
                                 <div className="flex items-center gap-3">
                                   <FolderIcon size={16} className="text-blue-400" />
-                                  <span className="text-sm font-medium">{folder.name}</span>
+                                  <span className="text-sm font-medium">
+                                    {folder.is_system ? t('folders.pinned') : folder.name}
+                                  </span>
                                   <span className="text-xs text-muted-foreground">
                                     ({folder.item_count} items)
                                   </span>
@@ -1112,13 +1114,15 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                                   >
                                     <MoreHorizontal size={14} />
                                   </button>
-                                  <button
-                                    onClick={() => handleDeleteFolder(folder.id)}
-                                    className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                    title="Delete"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                                  {!folder.is_system && (
+                                    <button
+                                      onClick={() => handleDeleteFolder(folder.id)}
+                                      className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                      title="Delete"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
                                 </div>
                               </>
                             )}

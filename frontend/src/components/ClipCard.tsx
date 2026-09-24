@@ -4,7 +4,7 @@ import { useMemo, memo, useState, forwardRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { PREVIEW_CHAR_LIMIT } from '../constants';
-import { Copy, Check, File } from 'lucide-react';
+import { Copy, Check, File, Pin } from 'lucide-react';
 import { useMotionValue, useMotionTemplate, motion } from 'framer-motion';
 
 interface ClipCardProps {
@@ -222,6 +222,12 @@ export const ClipCard = memo(
             <span className="flex-1 truncate text-[11px] font-bold uppercase tracking-wider text-black/80">
               {title}
             </span>
+            {/* Folders double as pinboards, so membership means "kept". */}
+            {clip.folder_id && (
+              <span title={t('folders.savedInFolder')} className="shrink-0">
+                <Pin size={12} className="text-black/70" />
+              </span>
+            )}
             <button
               data-el="clip-card-copy-btn"
               onClick={(e) => {

@@ -521,6 +521,22 @@ function App() {
     }
   }, [selectedClipId, handlePaste]);
 
+  /// Saves the selected clip into the built-in folder, or takes it back out.
+  ///
+  /// The backend emits `clipboard-change`, so the grid and the folder counts reload
+  /// from the database instead of being patched here.
+  const handlePin = async (clipId: string | null) => {
+    if (!clipId) return;
+    try {
+      const isPinned = await invoke<boolean>('toggle_pin', { clipId });
+      loadFolders();
+      toast.success(isPinned ? t('notifications.pinned') : t('notifications.unpinned'));
+    } catch (error) {
+      console.error('Failed to toggle pinned state:', error);
+      toast.error(t('notifications.pinFailed'));
+    }
+  };
+
   useKeyboard({
     onClose: () => appWindow.hide(),
     onSearch: () => setShowSearch(true),
@@ -528,6 +544,7 @@ function App() {
     onNavigateLeft: handleNavigateLeft,
     onNavigateRight: handleNavigateRight,
     onPaste: handlePasteSelected,
+    onPin: () => handlePin(selectedClipId),
   });
 
   const handleCreateFolder = async (name: string) => {

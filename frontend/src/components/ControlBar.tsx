@@ -341,7 +341,8 @@ export function ControlBar({
                 isDragging && cat.id === dragTargetFolderId && 'bg-accent ring-2 ring-primary'
               )}
             >
-              {cat.name}
+              {/* The synthetic "All Clips" pill carries no `is_system`, hence the `in`. */}
+              {'is_system' in cat && cat.is_system ? t('folders.pinned') : cat.name}
               {/* Show count badge if defined and > 0 */}
               {cat.count !== undefined && cat.count > 0 && (
                 <span className="ml-2 text-[10px] opacity-70">{cat.count}</span>
