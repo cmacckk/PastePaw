@@ -1,7 +1,8 @@
-import { FolderItem } from '../types';
+import { FolderItem, SourceAppCount } from '../types';
 import { Search, Plus, MoreHorizontal, X, ArrowUpCircle, AlignLeft, Image, File } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
+import { Select } from './ui/Select';
 
 interface ControlBarProps {
   folders: FolderItem[];
@@ -22,6 +23,10 @@ interface ControlBarProps {
   /** Clip types currently filtered in. Empty means every type is shown. */
   selectedTypes: string[];
   onToggleType: (type: string) => void;
+  /** Source applications present in the history, for the filter's choices. */
+  sourceApps: SourceAppCount[];
+  selectedSourceApp: string | null;
+  onSelectSourceApp: (name: string | null) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folderId: string) => void;
   theme?: 'light' | 'dark';
   style?: React.CSSProperties;
@@ -57,6 +62,9 @@ export function ControlBar({
   totalClipCount,
   selectedTypes,
   onToggleType,
+  sourceApps,
+  selectedSourceApp,
+  onSelectSourceApp,
   onFolderContextMenu,
   theme = 'dark',
   style,
@@ -403,6 +411,32 @@ export function ControlBar({
           );
         })}
       </div>
+
+      {/*
+        The source application filter sits outside the pill row on purpose: that row
+        scrolls horizontally, and an absolutely positioned dropdown inside it would be
+        clipped away. Hidden until some clip actually carries a source application.
+      */}
+      {sourceApps.length > 0 && (
+        <div
+          data-el="source-app-filter"
+          className="shrink-0"
+          style={{ WebkitAppRegion: 'no-drag' } as any}
+        >
+          <Select
+            value={selectedSourceApp ?? ''}
+            onChange={(value) => onSelectSourceApp(value === '' ? null : value)}
+            options={[
+              { value: '', label: t('sourceApps.all') },
+              ...sourceApps.map((app) => ({
+                value: app.name,
+                label: `${app.name} (${app.count})`,
+              })),
+            ]}
+            className="w-36"
+          />
+        </div>
+      )}
 
       {/* Actions */}
       <div

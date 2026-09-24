@@ -26,6 +26,9 @@
     "image": "图片",
     "file": "文件"
   },
+  "sourceApps": {
+    "all": "全部应用"
+  },
   "folders": {
     "all": "全部",
     "pinned": "收藏",

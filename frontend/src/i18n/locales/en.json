@@ -26,6 +26,9 @@
     "image": "Images",
     "file": "Files"
   },
+  "sourceApps": {
+    "all": "All apps"
+  },
   "folders": {
     "all": "All Clips",
     "pinned": "Pinned",

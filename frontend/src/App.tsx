@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { ClipboardItem as AppClipboardItem, FolderItem, Settings } from './types';
+import { ClipboardItem as AppClipboardItem, FolderItem, Settings, SourceAppCount } from './types';
 import { ClipList } from './components/ClipList';
 import { ControlBar } from './components/ControlBar';
 import { DragPreview } from './components/DragPreview';
@@ -25,6 +25,8 @@ function App() {
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedSourceApp, setSelectedSourceApp] = useState<string | null>(null);
+  const [sourceApps, setSourceApps] = useState<SourceAppCount[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
@@ -74,6 +76,10 @@ function App() {
   // value instead of the one from before the state update.
   const selectedTypesRef = useRef<string[]>(selectedTypes);
   selectedTypesRef.current = selectedTypes;
+
+  // Same reasoning as `selectedTypesRef`: the reload runs before the next render.
+  const selectedSourceAppRef = useRef<string | null>(selectedSourceApp);
+  selectedSourceAppRef.current = selectedSourceApp;
   const clipsRef = useRef(clips);
   clipsRef.current = clips;
   const loadPerfIdRef = useRef(0);
@@ -196,6 +202,7 @@ function App() {
             query: searchQuery,
             filterId: folderId,
             filterTypes: selectedTypesRef.current.length > 0 ? selectedTypesRef.current : null,
+            filterSourceApps: selectedSourceAppRef.current ? [selectedSourceAppRef.current] : null,
             limit: 20,
             offset: currentOffset,
           });
@@ -205,6 +212,7 @@ function App() {
           data = await invoke<AppClipboardItem[]>('get_clips', {
             filterId: folderId,
             filterTypes: selectedTypesRef.current.length > 0 ? selectedTypesRef.current : null,
+            filterSourceApps: selectedSourceAppRef.current ? [selectedSourceAppRef.current] : null,
             limit: 20,
             offset: currentOffset,
             previewOnly: true,
@@ -568,6 +576,26 @@ function App() {
     loadClips(selectedFolderRef.current, false, searchQuery);
   };
 
+  /// Refreshes the source application choices offered by the filter.
+  const loadSourceApps = useCallback(async () => {
+    try {
+      setSourceApps(await invoke<SourceAppCount[]>('get_source_apps'));
+    } catch (error) {
+      console.error('Failed to load source apps:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSourceApps();
+  }, [loadSourceApps]);
+
+  /// Applies the source application filter and reloads from the first page.
+  const handleSelectSourceApp = (name: string | null) => {
+    selectedSourceAppRef.current = name;
+    setSelectedSourceApp(name);
+    loadClips(selectedFolderRef.current, false, searchQuery);
+  };
+
   useKeyboard({
     onClose: () => appWindow.hide(),
     onSearch: () => setShowSearch(true),
@@ -798,6 +826,9 @@ function App() {
             onSelectFolder={handleSelectFolder}
             selectedTypes={selectedTypes}
             onToggleType={handleToggleType}
+            sourceApps={sourceApps}
+            selectedSourceApp={selectedSourceApp}
+            onSelectSourceApp={handleSelectSourceApp}
             showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchChange={handleSearch}

@@ -394,7 +394,8 @@ pub fn run_app() {
             commands::prune_history,
             commands::toggle_pin,
             commands::export_folders,
-            commands::import_folders
+            commands::import_folders,
+            commands::get_source_apps
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

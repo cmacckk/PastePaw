@@ -6,6 +6,7 @@ use crate::database::Database;
 use crate::models::{Clip, ClipboardItem, Folder, FolderItem};
 use crate::settings_manager::SettingsManager;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use serde::Serialize;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -346,24 +347,37 @@ fn normalise_clip_types(requested: Option<Vec<String>>) -> Vec<String> {
     kept
 }
 
-/// Appends the folder and type conditions shared by the list and search queries.
+/// Appends `AND <column> IN (?, ?, ...)` for a non-empty list.
+///
+/// `column` is always a literal from this file and never comes from the caller, which
+/// is what makes pushing it raw safe; the values themselves are always bound.
+fn push_in_list(builder: &mut QueryBuilder<'_, Sqlite>, column: &str, values: &[String]) {
+    if values.is_empty() {
+        return;
+    }
+
+    builder.push(" AND ").push(column).push(" IN (");
+    let mut separated = builder.separated(", ");
+    for value in values {
+        separated.push_bind(value.clone());
+    }
+    separated.push_unseparated(")");
+}
+
+/// Appends the folder, type and source application conditions shared by the list and
+/// search queries.
 fn push_clip_filters(
     builder: &mut QueryBuilder<'_, Sqlite>,
     folder_id: Option<i64>,
     clip_types: &[String],
+    source_apps: &[String],
 ) {
     if let Some(folder_id) = folder_id {
         builder.push(" AND folder_id = ").push_bind(folder_id);
     }
 
-    if !clip_types.is_empty() {
-        builder.push(" AND clip_type IN (");
-        let mut separated = builder.separated(", ");
-        for clip_type in clip_types {
-            separated.push_bind(clip_type.clone());
-        }
-        separated.push_unseparated(")");
-    }
+    push_in_list(builder, "clip_type", clip_types);
+    push_in_list(builder, "source_app", source_apps);
 }
 
 /// Resolves the folder filter, separating "no filter" from "unparseable id".
@@ -386,12 +400,13 @@ pub async fn query_clips(
     pool: &SqlitePool,
     folder_id: Option<i64>,
     clip_types: &[String],
+    source_apps: &[String],
     limit: i64,
     offset: i64,
 ) -> Result<Vec<Clip>, String> {
     let mut builder: QueryBuilder<'_, Sqlite> =
         QueryBuilder::new("SELECT * FROM clips WHERE is_deleted = 0");
-    push_clip_filters(&mut builder, folder_id, clip_types);
+    push_clip_filters(&mut builder, folder_id, clip_types, source_apps);
     builder
         .push(" ORDER BY created_at DESC LIMIT ")
         .push_bind(limit)
@@ -411,6 +426,7 @@ pub async fn query_clips_matching(
     pattern: &str,
     folder_id: Option<i64>,
     clip_types: &[String],
+    source_apps: &[String],
     limit: i64,
     offset: i64,
 ) -> Result<Vec<Clip>, String> {
@@ -421,7 +437,7 @@ pub async fn query_clips_matching(
         .push(" OR content LIKE ")
         .push_bind(pattern.to_string())
         .push(")");
-    push_clip_filters(&mut builder, folder_id, clip_types);
+    push_clip_filters(&mut builder, folder_id, clip_types, source_apps);
     builder
         .push(" ORDER BY created_at DESC LIMIT ")
         .push_bind(limit)
@@ -435,6 +451,57 @@ pub async fn query_clips_matching(
         .map_err(|e| e.to_string())
 }
 
+/// Normalises the source application filter.
+///
+/// These are arbitrary application names rather than a fixed set, so there is nothing
+/// to validate against; empty values are dropped and the list is capped so a
+/// pathological request cannot build an enormous statement.
+fn normalise_source_apps(requested: Option<Vec<String>>) -> Vec<String> {
+    const MAX_SOURCE_APPS: usize = 64;
+
+    requested
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|name| !name.trim().is_empty())
+        .take(MAX_SOURCE_APPS)
+        .collect()
+}
+
+/// A source application that has clips, with how many.
+#[derive(Debug, Serialize)]
+pub struct SourceAppCount {
+    pub name: String,
+    pub count: i64,
+}
+
+/// Lists the source applications that actually have clips, so the filter can offer
+/// real choices instead of a free text box.
+async fn query_source_apps(pool: &SqlitePool) -> Result<Vec<SourceAppCount>, String> {
+    let rows: Vec<(String, i64)> = sqlx::query_as(
+        r#"SELECT source_app, COUNT(*) AS clips
+           FROM clips
+           WHERE is_deleted = 0 AND source_app IS NOT NULL AND source_app != ''
+           GROUP BY source_app
+           ORDER BY clips DESC, source_app"#,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(rows
+        .into_iter()
+        .map(|(name, count)| SourceAppCount { name, count })
+        .collect())
+}
+
+/// Lists the source applications offered by the filter.
+#[tauri::command]
+pub async fn get_source_apps(
+    db: tauri::State<'_, Arc<Database>>,
+) -> Result<Vec<SourceAppCount>, String> {
+    query_source_apps(&db.pool).await
+}
+
 #[tauri::command]
 pub async fn get_clips(
     filter_id: Option<String>,
@@ -442,6 +509,7 @@ pub async fn get_clips(
     offset: i64,
     preview_only: Option<bool>,
     filter_types: Option<Vec<String>>,
+    filter_source_apps: Option<Vec<String>>,
     db: tauri::State<'_, Arc<Database>>,
 ) -> Result<Vec<ClipboardItem>, String> {
     let pool = &db.pool;
@@ -465,12 +533,13 @@ pub async fn get_clips(
     };
 
     let clip_types = normalise_clip_types(filter_types);
+    let source_apps = normalise_source_apps(filter_source_apps);
     log::info!(
-        "Querying clips: folder={folder_id:?} types={clip_types:?} offset={offset} limit={limit}"
+        "Querying clips: folder={folder_id:?} types={clip_types:?} apps={source_apps:?} offset={offset} limit={limit}"
     );
 
     let sql_started = Instant::now();
-    let clips = query_clips(pool, folder_id, &clip_types, limit, offset).await?;
+    let clips = query_clips(pool, folder_id, &clip_types, &source_apps, limit, offset).await?;
     let sql_ms = sql_started.elapsed().as_millis();
 
     log::info!("DB: Found {} clips", clips.len());
@@ -973,6 +1042,7 @@ pub async fn search_clips(
     query: String,
     filter_id: Option<String>,
     filter_types: Option<Vec<String>>,
+    filter_source_apps: Option<Vec<String>>,
     limit: i64,
     offset: i64,
     db: tauri::State<'_, Arc<Database>>,
@@ -996,6 +1066,7 @@ pub async fn search_clips(
         &search_pattern,
         folder_id,
         &normalise_clip_types(filter_types),
+        &normalise_source_apps(filter_source_apps),
         limit,
         offset,
     )
@@ -1520,7 +1591,7 @@ mod tests {
         insert_clip(&db, "b-image", "image", None, "-2 days").await;
         insert_clip(&db, "c-file", "file", None, "-3 days").await;
 
-        let clips = query_clips(&db.pool, None, &[], 20, 0)
+        let clips = query_clips(&db.pool, None, &[], &[], 20, 0)
             .await
             .expect("query");
 
@@ -1538,6 +1609,7 @@ mod tests {
             &db.pool,
             None,
             &["image".to_string(), "file".to_string()],
+            &[],
             20,
             0,
         )
@@ -1555,7 +1627,7 @@ mod tests {
         insert_clip(&db, "filed-text", "text", Some(pinned), "-2 days").await;
         insert_clip(&db, "loose-image", "image", None, "-3 days").await;
 
-        let clips = query_clips(&db.pool, Some(pinned), &["image".to_string()], 20, 0)
+        let clips = query_clips(&db.pool, Some(pinned), &["image".to_string()], &[], 20, 0)
             .await
             .expect("query");
 
@@ -1569,10 +1641,10 @@ mod tests {
         insert_clip(&db, "middle", "text", None, "-2 days").await;
         insert_clip(&db, "oldest", "text", None, "-3 days").await;
 
-        let first_page = query_clips(&db.pool, None, &[], 2, 0)
+        let first_page = query_clips(&db.pool, None, &[], &[], 2, 0)
             .await
             .expect("page 1");
-        let second_page = query_clips(&db.pool, None, &[], 2, 2)
+        let second_page = query_clips(&db.pool, None, &[], &[], 2, 2)
             .await
             .expect("page 2");
 
@@ -1587,10 +1659,17 @@ mod tests {
         insert_clip(&db, "b-image", "image", None, "-2 days").await;
 
         // Both rows contain "body of", so only the type filter can separate them.
-        let clips =
-            query_clips_matching(&db.pool, "%body of%", None, &["image".to_string()], 20, 0)
-                .await
-                .expect("search");
+        let clips = query_clips_matching(
+            &db.pool,
+            "%body of%",
+            None,
+            &["image".to_string()],
+            &[],
+            20,
+            0,
+        )
+        .await
+        .expect("search");
 
         assert_eq!(uuids(&clips), vec!["b-image"]);
     }
@@ -1614,5 +1693,101 @@ mod tests {
         assert_eq!(resolve_folder_filter(None), Ok(None));
         assert_eq!(resolve_folder_filter(Some("7")), Ok(Some(7)));
         assert!(resolve_folder_filter(Some("not-a-number")).is_err());
+    }
+
+    /// Sets the source application on an already inserted clip.
+    async fn set_source_app(db: &Database, uuid: &str, app: &str) {
+        sqlx::query("UPDATE clips SET source_app = ? WHERE uuid = ?")
+            .bind(app)
+            .bind(uuid)
+            .execute(&db.pool)
+            .await
+            .expect("set source app");
+    }
+
+    #[tokio::test]
+    async fn the_source_app_filter_narrows_to_that_application() {
+        let db = test_db().await;
+        insert_clip(&db, "from-chrome", "text", None, "-1 days").await;
+        insert_clip(&db, "from-word", "text", None, "-2 days").await;
+        set_source_app(&db, "from-chrome", "chrome.exe").await;
+        set_source_app(&db, "from-word", "winword.exe").await;
+
+        let clips = query_clips(&db.pool, None, &[], &["chrome.exe".to_string()], 20, 0)
+            .await
+            .expect("query");
+
+        assert_eq!(uuids(&clips), vec!["from-chrome"]);
+    }
+
+    #[tokio::test]
+    async fn the_source_app_filter_combines_with_the_type_filter() {
+        let db = test_db().await;
+        insert_clip(&db, "chrome-image", "image", None, "-1 days").await;
+        insert_clip(&db, "chrome-text", "text", None, "-2 days").await;
+        insert_clip(&db, "word-image", "image", None, "-3 days").await;
+        set_source_app(&db, "chrome-image", "chrome.exe").await;
+        set_source_app(&db, "chrome-text", "chrome.exe").await;
+        set_source_app(&db, "word-image", "winword.exe").await;
+
+        let clips = query_clips(
+            &db.pool,
+            None,
+            &["image".to_string()],
+            &["chrome.exe".to_string()],
+            20,
+            0,
+        )
+        .await
+        .expect("query");
+
+        assert_eq!(uuids(&clips), vec!["chrome-image"]);
+    }
+
+    #[tokio::test]
+    async fn the_source_app_list_is_ordered_by_how_much_each_holds() {
+        let db = test_db().await;
+        insert_clip(&db, "a", "text", None, "-1 days").await;
+        insert_clip(&db, "b", "text", None, "-2 days").await;
+        insert_clip(&db, "c", "text", None, "-3 days").await;
+        insert_clip(&db, "no-app", "text", None, "-4 days").await;
+        set_source_app(&db, "a", "chrome.exe").await;
+        set_source_app(&db, "b", "chrome.exe").await;
+        set_source_app(&db, "c", "winword.exe").await;
+
+        let apps = query_source_apps(&db.pool).await.expect("list source apps");
+
+        assert_eq!(
+            apps.iter()
+                .map(|app| (app.name.as_str(), app.count))
+                .collect::<Vec<_>>(),
+            vec![("chrome.exe", 2), ("winword.exe", 1)],
+            "ordered by count, and a clip with no source app is left out"
+        );
+    }
+
+    /// A source application name is arbitrary text, so it is never validated and never
+    /// interpolated: it only ever reaches the query as a bound parameter.
+    #[test]
+    fn source_app_values_are_kept_verbatim_and_bound() {
+        let kept = normalise_source_apps(Some(vec![
+            "chrome.exe".to_string(),
+            "   ".to_string(),
+            "'; DROP TABLE clips; --".to_string(),
+        ]));
+
+        assert_eq!(
+            kept,
+            vec!["chrome.exe", "'; DROP TABLE clips; --"],
+            "only blank values are dropped"
+        );
+        assert!(normalise_source_apps(None).is_empty());
+    }
+
+    #[test]
+    fn the_source_app_filter_is_capped() {
+        let many: Vec<String> = (0..200).map(|index| format!("app-{index}.exe")).collect();
+
+        assert_eq!(normalise_source_apps(Some(many)).len(), 64);
     }
 }

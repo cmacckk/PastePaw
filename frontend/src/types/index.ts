@@ -29,6 +29,12 @@ export interface ImportReport {
   images_missing: number;
 }
 
+/** A source application that has clips, with how many. Mirrors the Rust type. */
+export interface SourceAppCount {
+  name: string;
+  count: number;
+}
+
 export interface Settings {
   max_items: number;
   auto_delete_days: number;
