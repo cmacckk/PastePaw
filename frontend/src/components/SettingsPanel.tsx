@@ -288,6 +288,22 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
     });
   };
 
+  const handlePruneNow = async () => {
+    try {
+      const removed = await invoke<number>('prune_history');
+      const newSize = await invoke<number>('get_clipboard_history_size');
+      setHistorySize(newSize);
+      if (removed > 0) {
+        toast.success(t('settings.pruneRemoved', { count: removed }));
+      } else {
+        toast.info(t('settings.pruneNothing'));
+      }
+    } catch (error) {
+      console.error('Failed to clean up history:', error);
+      toast.error(`${t('settings.pruneFailed')}: ${error}`);
+    }
+  };
+
   // Folder Management Functions
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
@@ -675,6 +691,54 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                         />
                       </button>
                     </div>
+                  </section>
+
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      {t('settings.historyRetention')}
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="text-sm font-medium">{t('settings.keepHistory')}</span>
+                        </label>
+                        <Select
+                          value={String(settings.auto_delete_days ?? 30)}
+                          onChange={(val) => updateSetting('auto_delete_days', Number(val))}
+                          options={[
+                            { value: '1', label: t('settings.retentionDays', { count: 1 }) },
+                            { value: '7', label: t('settings.retentionDays', { count: 7 }) },
+                            { value: '30', label: t('settings.retentionDays', { count: 30 }) },
+                            { value: '90', label: t('settings.retentionDays', { count: 90 }) },
+                            { value: '365', label: t('settings.retentionDays', { count: 365 }) },
+                            { value: '0', label: t('settings.retentionForever') },
+                          ]}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="text-sm font-medium">{t('settings.maxItems')}</span>
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={settings.max_items ?? 1000}
+                          onChange={(e) => updateSetting('max_items', Number(e.target.value))}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">{t('settings.retentionHint')}</p>
+
+                    <button
+                      onClick={handlePruneNow}
+                      className="rounded-lg border border-border bg-accent/20 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/40"
+                    >
+                      {t('settings.pruneNow')}
+                    </button>
                   </section>
 
                   <section className="space-y-4">
