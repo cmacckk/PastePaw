@@ -417,6 +417,26 @@ pub fn get_effective_theme(window: &tauri::WebviewWindow, theme_setting: &str) -
     }
 }
 
+/// How many frames a window slide is drawn in, together with the interval between
+/// them.
+///
+/// Windows' default timer granularity is about 15.6 ms, so a shorter sleep is rounded
+/// up. The previous 10 ms sleep therefore produced frames of roughly 15.6 ms with
+/// varying rounding, which reads as stutter; one frame per 15 ms is honest about that
+/// floor. Twelve frames put the slide at about 180 ms.
+const SLIDE_FRAMES: i32 = 12;
+const SLIDE_FRAME_INTERVAL: std::time::Duration = std::time::Duration::from_millis(15);
+
+/// Eased progress along a slide, for a normalised `progress` in `[0, 1]`.
+///
+/// Ease out cubic: the window leaves quickly and settles gently. Advancing by a
+/// constant step per frame instead is what makes an otherwise correct animation read
+/// as mechanical.
+fn ease_out_cubic(progress: f32) -> f32 {
+    let clamped = progress.clamp(0.0, 1.0);
+    1.0 - (1.0 - clamped).powi(3)
+}
+
 pub fn position_window_at_bottom(window: &tauri::WebviewWindow) {
     let (mica_effect, theme_setting, round_corners) = {
         let manager = window.state::<Arc<crate::settings_manager::SettingsManager>>();
@@ -563,18 +583,25 @@ pub fn animate_window_show(window: &tauri::WebviewWindow) {
                 }
             }
 
-            let steps = 15;
-            let duration = std::time::Duration::from_millis(10);
-            let dy = (target_y - start_y) as f64 / steps as f64;
+            // Frame timing is derived from a fixed start instant so that timer rounding
+            // cannot accumulate into drift over the slide.
+            let animation_started = std::time::Instant::now();
+            let slide_distance = (target_y - start_y) as f32;
 
-            for i in 1..=steps {
-                let current_y = (start_y as f64 + dy * i as f64) as i32;
-                if let Ok(handle) = window.hwnd() {
-                    use windows::Win32::Foundation::HWND;
+            // Resolved once instead of per frame.
+            let window_hwnd = window
+                .hwnd()
+                .ok()
+                .map(|handle| windows::Win32::Foundation::HWND(handle.0 as _));
+
+            for frame in 1..=SLIDE_FRAMES {
+                let eased = ease_out_cubic(frame as f32 / SLIDE_FRAMES as f32);
+                let current_y = start_y + (slide_distance * eased).round() as i32;
+
+                if let Some(hwnd) = window_hwnd {
                     use windows::Win32::UI::WindowsAndMessaging::{
                         SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER,
                     };
-                    let hwnd = HWND(handle.0 as _);
                     unsafe {
                         let _ = SetWindowPos(
                             hwnd,
@@ -593,8 +620,19 @@ pub fn animate_window_show(window: &tauri::WebviewWindow) {
                             y: current_y,
                         }));
                 }
-                std::thread::sleep(duration);
+
+                let deadline = animation_started + SLIDE_FRAME_INTERVAL * frame as u32;
+                if let Some(remaining) = deadline.checked_duration_since(std::time::Instant::now())
+                {
+                    std::thread::sleep(remaining);
+                }
             }
+
+            log::info!(
+                "[perf][animate_show] frames={} total_ms={}",
+                SLIDE_FRAMES,
+                animation_started.elapsed().as_millis()
+            );
 
             // Ensure final position is exact
             if let Ok(handle) = window.hwnd() {
@@ -687,9 +725,10 @@ pub fn animate_window_hide(
             let start_y = reference_bottom - window_height_px as i32 - bottom_margin_px;
             let target_y = reference_bottom;
 
-            let steps = 15;
-            let duration = std::time::Duration::from_millis(10);
-            let dy = (target_y - start_y) as f64 / steps as f64;
+            // Frame timing is derived from a fixed start instant so that timer rounding
+            // cannot accumulate into drift over the slide.
+            let animation_started = std::time::Instant::now();
+            let slide_distance = (target_y - start_y) as f32;
 
             if let Ok(handle) = window.hwnd() {
                 use windows::Win32::Foundation::HWND;
@@ -717,8 +756,15 @@ pub fn animate_window_hide(
                 unsafe { FindWindowW(windows::core::w!("Shell_TrayWnd"), None).ok() }
             };
 
-            for i in 1..=steps {
-                let current_y = (start_y as f64 + dy * i as f64) as i32;
+            // Resolved once instead of per frame.
+            let window_hwnd = window
+                .hwnd()
+                .ok()
+                .map(|handle| windows::Win32::Foundation::HWND(handle.0 as _));
+
+            for frame in 1..=SLIDE_FRAMES {
+                let eased = ease_out_cubic(frame as f32 / SLIDE_FRAMES as f32);
+                let current_y = start_y + (slide_distance * eased).round() as i32;
 
                 let mut z_order = None;
                 if !float_above_taskbar && !dropped_z {
@@ -736,12 +782,10 @@ pub fn animate_window_hide(
                     }
                 }
 
-                if let Ok(handle) = window.hwnd() {
-                    use windows::Win32::Foundation::HWND;
+                if let Some(hwnd) = window_hwnd {
                     use windows::Win32::UI::WindowsAndMessaging::{
                         SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER,
                     };
-                    let hwnd = HWND(handle.0 as _);
                     let flags = SWP_NOSIZE
                         | SWP_NOACTIVATE
                         | if z_order.is_some() {
@@ -759,8 +803,19 @@ pub fn animate_window_hide(
                             y: current_y,
                         }));
                 }
-                std::thread::sleep(duration);
+
+                let deadline = animation_started + SLIDE_FRAME_INTERVAL * frame as u32;
+                if let Some(remaining) = deadline.checked_duration_since(std::time::Instant::now())
+                {
+                    std::thread::sleep(remaining);
+                }
             }
+
+            log::info!(
+                "[perf][animate_hide] frames={} total_ms={}",
+                SLIDE_FRAMES,
+                animation_started.elapsed().as_millis()
+            );
 
             let _ = window.hide();
         } else {
@@ -958,5 +1013,55 @@ pub fn update_window_size(window: &tauri::WebviewWindow) {
             width: target_width,
             height: target_height,
         }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ease_out_starts_at_zero_and_finishes_at_one() {
+        assert_eq!(ease_out_cubic(0.0), 0.0);
+        assert!((ease_out_cubic(1.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn ease_out_never_moves_backwards() {
+        let mut previous = -1.0;
+        for step in 0..=20 {
+            let value = ease_out_cubic(step as f32 / 20.0);
+            assert!(
+                value >= previous,
+                "the eased position went backwards at step {step}"
+            );
+            previous = value;
+        }
+    }
+
+    /// The property that makes the motion read as smooth: most of the distance is
+    /// covered early, and the last frames are small corrections.
+    #[test]
+    fn ease_out_covers_most_of_the_distance_early() {
+        assert!(
+            ease_out_cubic(0.5) > 0.8,
+            "half of the time should be well past half of the distance"
+        );
+        assert!(
+            ease_out_cubic(1.0) - ease_out_cubic(0.9) < 0.2,
+            "the last frame should be a small correction"
+        );
+    }
+
+    #[test]
+    fn ease_out_clamps_input_outside_the_unit_range() {
+        assert_eq!(ease_out_cubic(-1.0), 0.0);
+        assert_eq!(ease_out_cubic(2.0), 1.0);
+    }
+
+    #[test]
+    fn a_slide_lasts_about_180_ms() {
+        let total = SLIDE_FRAME_INTERVAL * SLIDE_FRAMES as u32;
+        assert_eq!(total.as_millis(), 180);
     }
 }
