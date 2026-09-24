@@ -6,7 +6,7 @@ use crate::database::Database;
 use crate::models::{Clip, ClipboardItem, Folder, FolderItem};
 use crate::settings_manager::SettingsManager;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use sqlx::SqlitePool;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -321,12 +321,127 @@ async fn load_full_image_content(pool: &SqlitePool, clip: &mut Clip) -> Result<V
     Err("Image content missing".to_string())
 }
 
+/// The clip types a filter may select.
+///
+/// Mirrors what capture actually produces. There is no link or colour type: those
+/// would need their own capture paths, not a filter value.
+pub const CLIP_TYPES: [&str; 3] = ["text", "image", "file"];
+
+/// Keeps recognised type names and reports the rest.
+///
+/// An unrecognised name is dropped rather than reaching SQL, so a bad value from the
+/// window narrows nothing rather than silently matching nothing.
+fn normalise_clip_types(requested: Option<Vec<String>>) -> Vec<String> {
+    let requested = requested.unwrap_or_default();
+    let mut kept = Vec::with_capacity(requested.len());
+
+    for name in requested {
+        if CLIP_TYPES.contains(&name.as_str()) {
+            kept.push(name);
+        } else {
+            log::warn!("Ignoring an unknown clip type filter: {name}");
+        }
+    }
+
+    kept
+}
+
+/// Appends the folder and type conditions shared by the list and search queries.
+fn push_clip_filters(
+    builder: &mut QueryBuilder<'_, Sqlite>,
+    folder_id: Option<i64>,
+    clip_types: &[String],
+) {
+    if let Some(folder_id) = folder_id {
+        builder.push(" AND folder_id = ").push_bind(folder_id);
+    }
+
+    if !clip_types.is_empty() {
+        builder.push(" AND clip_type IN (");
+        let mut separated = builder.separated(", ");
+        for clip_type in clip_types {
+            separated.push_bind(clip_type.clone());
+        }
+        separated.push_unseparated(")");
+    }
+}
+
+/// Resolves the folder filter, separating "no filter" from "unparseable id".
+fn resolve_folder_filter(filter_id: Option<&str>) -> Result<Option<i64>, String> {
+    match filter_id {
+        None => Ok(None),
+        Some(id) => id
+            .parse::<i64>()
+            .map(Some)
+            .map_err(|_| format!("Unknown folder id: {id}")),
+    }
+}
+
+/// Lists clips for the grid, narrowed to a folder and/or a set of clip types.
+///
+/// Built with `QueryBuilder` rather than by concatenating SQL, because the type filter
+/// is a variable length list. Kept out of the command so the filter behaviour can be
+/// tested against a real database instead of only through the window.
+pub async fn query_clips(
+    pool: &SqlitePool,
+    folder_id: Option<i64>,
+    clip_types: &[String],
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Clip>, String> {
+    let mut builder: QueryBuilder<'_, Sqlite> =
+        QueryBuilder::new("SELECT * FROM clips WHERE is_deleted = 0");
+    push_clip_filters(&mut builder, folder_id, clip_types);
+    builder
+        .push(" ORDER BY created_at DESC LIMIT ")
+        .push_bind(limit)
+        .push(" OFFSET ")
+        .push_bind(offset);
+
+    builder
+        .build_query_as::<Clip>()
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// The search counterpart of [`query_clips`].
+pub async fn query_clips_matching(
+    pool: &SqlitePool,
+    pattern: &str,
+    folder_id: Option<i64>,
+    clip_types: &[String],
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Clip>, String> {
+    let mut builder: QueryBuilder<'_, Sqlite> =
+        QueryBuilder::new("SELECT * FROM clips WHERE is_deleted = 0 AND (text_preview LIKE ");
+    builder
+        .push_bind(pattern.to_string())
+        .push(" OR content LIKE ")
+        .push_bind(pattern.to_string())
+        .push(")");
+    push_clip_filters(&mut builder, folder_id, clip_types);
+    builder
+        .push(" ORDER BY created_at DESC LIMIT ")
+        .push_bind(limit)
+        .push(" OFFSET ")
+        .push_bind(offset);
+
+    builder
+        .build_query_as::<Clip>()
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn get_clips(
     filter_id: Option<String>,
     limit: i64,
     offset: i64,
     preview_only: Option<bool>,
+    filter_types: Option<Vec<String>>,
     db: tauri::State<'_, Arc<Database>>,
 ) -> Result<Vec<ClipboardItem>, String> {
     let pool = &db.pool;
@@ -339,44 +454,23 @@ pub async fn get_clips(
         preview_only
     );
 
-    let sql_started = Instant::now();
-    let clips: Vec<Clip> = match filter_id.as_deref() {
-        Some(id) => {
-            let folder_id_num = id.parse::<i64>().ok();
-            if let Some(numeric_id) = folder_id_num {
-                log::info!("Querying for folder_id: {}", numeric_id);
-                sqlx::query_as(
-                    r#"
-                    SELECT * FROM clips WHERE is_deleted = 0 AND folder_id = ?
-                    ORDER BY created_at DESC LIMIT ? OFFSET ?
-                "#,
-                )
-                .bind(numeric_id)
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(pool)
-                .await
-                .map_err(|e| e.to_string())?
-            } else {
-                log::info!("Unknown folder_id, returning empty");
-                Vec::new()
-            }
-        }
-        None => {
-            log::info!("Querying for items, offset: {}, limit: {}", offset, limit);
-            sqlx::query_as(
-                r#"
-                SELECT * FROM clips WHERE is_deleted = 0
-                ORDER BY created_at DESC LIMIT ? OFFSET ?
-            "#,
-            )
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| e.to_string())?
+    let folder_id = match resolve_folder_filter(filter_id.as_deref()) {
+        Ok(folder_id) => folder_id,
+        Err(message) => {
+            // Kept from before: an unparseable folder id yields an empty page rather than
+            // every clip. Logged now, because silence made it look like an empty folder.
+            log::warn!("{message}");
+            return Ok(Vec::new());
         }
     };
+
+    let clip_types = normalise_clip_types(filter_types);
+    log::info!(
+        "Querying clips: folder={folder_id:?} types={clip_types:?} offset={offset} limit={limit}"
+    );
+
+    let sql_started = Instant::now();
+    let clips = query_clips(pool, folder_id, &clip_types, limit, offset).await?;
     let sql_ms = sql_started.elapsed().as_millis();
 
     log::info!("DB: Found {} clips", clips.len());
@@ -878,6 +972,7 @@ pub async fn rename_folder(
 pub async fn search_clips(
     query: String,
     filter_id: Option<String>,
+    filter_types: Option<Vec<String>>,
     limit: i64,
     offset: i64,
     db: tauri::State<'_, Arc<Database>>,
@@ -887,39 +982,24 @@ pub async fn search_clips(
 
     let search_pattern = format!("%{}%", query);
 
-    let sql_started = Instant::now();
-    let clips: Vec<Clip> = match filter_id.as_deref() {
-        Some(id) => {
-            let folder_id_num = id.parse::<i64>().ok();
-            if let Some(numeric_id) = folder_id_num {
-                sqlx::query_as(r#"
-                    SELECT * FROM clips WHERE is_deleted = 0 AND folder_id = ? AND (text_preview LIKE ? OR content LIKE ?)
-                    ORDER BY created_at DESC LIMIT ? OFFSET ?
-                "#)
-                .bind(numeric_id)
-                .bind(&search_pattern)
-                .bind(&search_pattern)
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(pool).await.map_err(|e| e.to_string())?
-            } else {
-                Vec::new()
-            }
+    let folder_id = match resolve_folder_filter(filter_id.as_deref()) {
+        Ok(folder_id) => folder_id,
+        Err(message) => {
+            log::warn!("{message}");
+            return Ok(Vec::new());
         }
-        None => sqlx::query_as(
-            r#"
-                SELECT * FROM clips WHERE is_deleted = 0 AND (text_preview LIKE ? OR content LIKE ?)
-                ORDER BY created_at DESC LIMIT ? OFFSET ?
-            "#,
-        )
-        .bind(&search_pattern)
-        .bind(&search_pattern)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?,
     };
+
+    let sql_started = Instant::now();
+    let clips = query_clips_matching(
+        pool,
+        &search_pattern,
+        folder_id,
+        &normalise_clip_types(filter_types),
+        limit,
+        offset,
+    )
+    .await?;
     let sql_ms = sql_started.elapsed().as_millis();
 
     // Batch fetch image paths
@@ -1382,4 +1462,157 @@ pub async fn install_update(
     update_manager: tauri::State<'_, Arc<crate::updater::UpdateManager>>,
 ) -> Result<(), String> {
     update_manager.install_update(&app).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::Database;
+
+    async fn test_db() -> Database {
+        let db = Database::in_memory().await;
+        db.migrate().await.expect("migrate");
+        db
+    }
+
+    /// `age` is a SQLite datetime modifier such as `-2 days`.
+    async fn insert_clip(
+        db: &Database,
+        uuid: &str,
+        clip_type: &str,
+        folder: Option<i64>,
+        age: &str,
+    ) {
+        let body = format!("body of {uuid}");
+        sqlx::query(
+            r#"INSERT INTO clips (uuid, clip_type, content, content_hash, text_preview, folder_id,
+                                  created_at, last_accessed)
+               VALUES (?, ?, ?, ?, ?, ?, datetime('now', ?), CURRENT_TIMESTAMP)"#,
+        )
+        .bind(uuid)
+        .bind(clip_type)
+        .bind(body.as_bytes())
+        .bind(format!("hash-{uuid}"))
+        .bind(&body)
+        .bind(folder)
+        .bind(age)
+        .execute(&db.pool)
+        .await
+        .expect("insert clip");
+    }
+
+    async fn make_folder(db: &Database, name: &str) -> i64 {
+        sqlx::query_scalar("INSERT INTO folders (name) VALUES (?) RETURNING id")
+            .bind(name)
+            .fetch_one(&db.pool)
+            .await
+            .expect("insert folder")
+    }
+
+    fn uuids(clips: &[Clip]) -> Vec<String> {
+        clips.iter().map(|clip| clip.uuid.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn no_type_filter_returns_every_type() {
+        let db = test_db().await;
+        insert_clip(&db, "a-text", "text", None, "-1 days").await;
+        insert_clip(&db, "b-image", "image", None, "-2 days").await;
+        insert_clip(&db, "c-file", "file", None, "-3 days").await;
+
+        let clips = query_clips(&db.pool, None, &[], 20, 0)
+            .await
+            .expect("query");
+
+        assert_eq!(clips.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn the_type_filter_narrows_to_the_requested_types() {
+        let db = test_db().await;
+        insert_clip(&db, "a-text", "text", None, "-1 days").await;
+        insert_clip(&db, "b-image", "image", None, "-2 days").await;
+        insert_clip(&db, "c-file", "file", None, "-3 days").await;
+
+        let clips = query_clips(
+            &db.pool,
+            None,
+            &["image".to_string(), "file".to_string()],
+            20,
+            0,
+        )
+        .await
+        .expect("query");
+
+        assert_eq!(uuids(&clips), vec!["b-image", "c-file"]);
+    }
+
+    #[tokio::test]
+    async fn the_type_filter_combines_with_the_folder_filter() {
+        let db = test_db().await;
+        let pinned = make_folder(&db, "pinned").await;
+        insert_clip(&db, "filed-image", "image", Some(pinned), "-1 days").await;
+        insert_clip(&db, "filed-text", "text", Some(pinned), "-2 days").await;
+        insert_clip(&db, "loose-image", "image", None, "-3 days").await;
+
+        let clips = query_clips(&db.pool, Some(pinned), &["image".to_string()], 20, 0)
+            .await
+            .expect("query");
+
+        assert_eq!(uuids(&clips), vec!["filed-image"]);
+    }
+
+    #[tokio::test]
+    async fn results_are_newest_first_and_paged() {
+        let db = test_db().await;
+        insert_clip(&db, "newest", "text", None, "-1 days").await;
+        insert_clip(&db, "middle", "text", None, "-2 days").await;
+        insert_clip(&db, "oldest", "text", None, "-3 days").await;
+
+        let first_page = query_clips(&db.pool, None, &[], 2, 0)
+            .await
+            .expect("page 1");
+        let second_page = query_clips(&db.pool, None, &[], 2, 2)
+            .await
+            .expect("page 2");
+
+        assert_eq!(uuids(&first_page), vec!["newest", "middle"]);
+        assert_eq!(uuids(&second_page), vec!["oldest"]);
+    }
+
+    #[tokio::test]
+    async fn search_respects_the_type_filter() {
+        let db = test_db().await;
+        insert_clip(&db, "a-text", "text", None, "-1 days").await;
+        insert_clip(&db, "b-image", "image", None, "-2 days").await;
+
+        // Both rows contain "body of", so only the type filter can separate them.
+        let clips =
+            query_clips_matching(&db.pool, "%body of%", None, &["image".to_string()], 20, 0)
+                .await
+                .expect("search");
+
+        assert_eq!(uuids(&clips), vec!["b-image"]);
+    }
+
+    /// A type name is never interpolated into SQL, so a hostile value can only ever be
+    /// dropped.
+    #[test]
+    fn unknown_type_names_are_dropped_rather_than_reaching_sql() {
+        let kept = normalise_clip_types(Some(vec![
+            "image".to_string(),
+            "'; DROP TABLE clips; --".to_string(),
+            "nonsense".to_string(),
+        ]));
+
+        assert_eq!(kept, vec!["image".to_string()]);
+        assert!(normalise_clip_types(None).is_empty());
+    }
+
+    #[test]
+    fn an_unparseable_folder_id_is_reported() {
+        assert_eq!(resolve_folder_filter(None), Ok(None));
+        assert_eq!(resolve_folder_filter(Some("7")), Ok(Some(7)));
+        assert!(resolve_folder_filter(Some("not-a-number")).is_err());
+    }
 }

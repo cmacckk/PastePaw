@@ -189,6 +189,7 @@ function App() {
           data = await invoke<AppClipboardItem[]>('search_clips', {
             query: searchQuery,
             filterId: folderId,
+            filterTypes: null,
             limit: 20,
             offset: currentOffset,
           });
@@ -197,6 +198,7 @@ function App() {
           if (perfLogEnabled) invokeStart = performance.now();
           data = await invoke<AppClipboardItem[]>('get_clips', {
             filterId: folderId,
+            filterTypes: null,
             limit: 20,
             offset: currentOffset,
             previewOnly: true,
