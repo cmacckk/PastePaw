@@ -16,7 +16,6 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 static IS_ANIMATING: AtomicBool = AtomicBool::new(false);
 static LAST_SHOW_TIME: AtomicI64 = AtomicI64::new(0);
 
-mod ai;
 mod clipboard;
 mod clipboard_formats;
 mod commands;
@@ -385,7 +384,6 @@ pub fn run_app() {
             commands::pick_file,
             commands::get_layout_config,
             commands::test_log,
-            commands::ai_process_clip,
             commands::focus_window,
             commands::refresh_window,
             commands::get_available_update,
