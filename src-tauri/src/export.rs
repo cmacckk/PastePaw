@@ -670,6 +670,51 @@ mod tests {
         assert_eq!(names, vec!["added by hand".to_string(), "work".to_string()]);
     }
 
+    /// One accepted criterion carries a budget: a large export has to finish inside
+    /// five seconds. The bound is deliberately loose so it does not flake on a busy
+    /// machine, while still failing if the export ever becomes quadratic in the number
+    /// of clips.
+    #[tokio::test]
+    async fn a_large_export_stays_inside_the_five_second_budget() {
+        let db = test_db().await;
+        let folder = make_folder(&db, "bulk").await;
+
+        for index in 0..1000 {
+            insert_clip(
+                &db,
+                &format!("bulk-{index}"),
+                "text",
+                "payload",
+                Some(folder),
+            )
+            .await;
+        }
+        for index in 0..100 {
+            let uuid = format!("shot-{index}");
+            insert_clip(&db, &uuid, "image", "", Some(folder)).await;
+            sqlx::query(
+                r#"INSERT INTO clip_images (clip_uuid, full_content, file_path, storage_kind)
+                   VALUES (?, x'', ?, 'file')"#,
+            )
+            .bind(&uuid)
+            .bind(format!("/nonexistent/shot-{index}.png"))
+            .execute(&db.pool)
+            .await
+            .expect("insert image row");
+        }
+
+        let started = std::time::Instant::now();
+        let bundle = export_bundle(&db.pool).await.expect("export");
+        let elapsed = started.elapsed();
+
+        println!("exported {} clips in {elapsed:?}", bundle.clips.len());
+        assert_eq!(bundle.clips.len(), 1100);
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "exporting 1100 clips took {elapsed:?}, the budget is 5s"
+        );
+    }
+
     #[tokio::test]
     async fn an_unsupported_version_is_rejected() {
         let db = test_db().await;
