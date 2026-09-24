@@ -22,6 +22,7 @@ mod clipboard_formats;
 mod commands;
 mod constants;
 mod database;
+mod export;
 mod models;
 mod pins;
 mod retention;
@@ -391,7 +392,9 @@ pub fn run_app() {
             commands::check_update_now,
             commands::install_update,
             commands::prune_history,
-            commands::toggle_pin
+            commands::toggle_pin,
+            commands::export_folders,
+            commands::import_folders
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

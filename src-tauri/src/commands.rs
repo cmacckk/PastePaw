@@ -1085,6 +1085,88 @@ pub async fn prune_history(
     Ok(report.total() as i64)
 }
 
+/// Writes every folder clip to a JSON file the user picks, and returns its path.
+///
+/// Deliberately a synchronous command. It opens a modal file dialog, and blocking a
+/// worker of the async runtime for as long as that dialog is open would stall the
+/// clipboard monitor along with everything else sharing that runtime.
+#[tauri::command]
+pub fn export_folders(
+    app: AppHandle,
+    db: tauri::State<'_, Arc<Database>>,
+) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let bundle = crate::get_runtime()
+        .expect("the global runtime is created during startup")
+        .block_on(crate::export::export_bundle(&db.pool))?;
+
+    let clip_count = bundle.clips.len();
+    let json = serde_json::to_string_pretty(&bundle).map_err(|e| e.to_string())?;
+
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_file_name(crate::export::suggested_file_name())
+        .blocking_save_file()
+        .ok_or_else(|| "No file selected".to_string())?
+        .into_path()
+        .map_err(|e| e.to_string())?;
+
+    std::fs::write(&path, json).map_err(|e| format!("could not write {}: {e}", path.display()))?;
+
+    log::info!(
+        "export_folders: wrote {clip_count} clip(s) to {}",
+        path.display()
+    );
+
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Applies a bundle the user picks, and reports what it did.
+#[tauri::command]
+pub fn import_folders(
+    app: AppHandle,
+    db: tauri::State<'_, Arc<Database>>,
+) -> Result<crate::export::ImportReport, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .blocking_pick_file()
+        .ok_or_else(|| "No file selected".to_string())?
+        .into_path()
+        .map_err(|e| e.to_string())?;
+
+    let json = std::fs::read_to_string(&path)
+        .map_err(|e| format!("could not read {}: {e}", path.display()))?;
+
+    let report = crate::get_runtime()
+        .expect("the global runtime is created during startup")
+        .block_on(crate::export::import_bundle_json(&db.pool, &json))?;
+
+    // The main window keeps its own copy of the list, so it has to be told that
+    // folders and clips appeared underneath it.
+    if report.clips_imported > 0 || report.folders_created > 0 {
+        let _ = app.emit("clipboard-change", ());
+    }
+
+    log::info!(
+        "import_folders: imported {} clip(s), skipped {}, folders created {} / reused {}, images restored {} / missing {}",
+        report.clips_imported,
+        report.clips_skipped,
+        report.folders_created,
+        report.folders_reused,
+        report.images_restored,
+        report.images_missing
+    );
+
+    Ok(report)
+}
+
 #[tauri::command]
 pub async fn clear_clipboard_history(db: tauri::State<'_, Arc<Database>>) -> Result<(), String> {
     let pool = &db.pool;
