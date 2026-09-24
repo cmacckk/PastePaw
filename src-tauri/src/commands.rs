@@ -1,5 +1,5 @@
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_clipboard_x::{start_listening, stop_listening, write_text};
+use tauri_plugin_clipboard_x::{start_listening, stop_listening};
 
 use crate::ai::{self, AiAction, AiConfig};
 use crate::database::Database;
@@ -490,6 +490,37 @@ pub async fn get_clip_detail(
     get_clip(id, db).await
 }
 
+/// Reads the authoritative file list for a `file` clip.
+///
+/// `clips.content` only holds the newline joined copy that search and the preview
+/// read; the list paste-back needs lives in `clip_formats`.
+async fn load_clip_files(pool: &SqlitePool, clip_uuid: &str) -> Option<Vec<String>> {
+    let raw: Option<Vec<u8>> = match sqlx::query_scalar(
+        r#"SELECT content FROM clip_formats WHERE clip_uuid = ? AND format = ?"#,
+    )
+    .bind(clip_uuid)
+    .bind(crate::clipboard_formats::FORMAT_FILE)
+    .fetch_optional(pool)
+    .await
+    {
+        Ok(raw) => raw,
+        Err(e) => {
+            log::error!("Failed to load file list for clip {clip_uuid}: {e}");
+            return None;
+        }
+    };
+
+    raw.and_then(
+        |bytes| match serde_json::from_slice::<Vec<String>>(&bytes) {
+            Ok(files) => Some(files),
+            Err(e) => {
+                log::error!("Failed to decode file list for clip {clip_uuid}: {e}");
+                None
+            }
+        },
+    )
+}
+
 #[tauri::command]
 pub async fn paste_clip(
     id: String,
@@ -522,32 +553,45 @@ pub async fn paste_clip(
 
             if clip.clip_type == "image" {
                 crate::clipboard::set_ignore_hash(content_hash.clone());
-                // Frontend writes image via navigator.clipboard API.
+                // TODO(v1.6 step 4b): images are still written by the WebView through
+                // navigator.clipboard, which drops the alpha channel.
             } else {
-                let content_str = String::from_utf8_lossy(&clip.content).to_string();
                 crate::clipboard::set_ignore_hash(content_hash.clone());
-                //crate::clipboard::set_last_stable_hash(content_hash.clone());
 
-                let mut last_err = String::new();
-                for i in 0..5 {
-                    match write_text(content_str.clone()).await {
-                        Ok(_) => {
-                            last_err.clear();
-                            break;
-                        }
-                        Err(e) => {
-                            last_err = e.to_string();
-                            log::warn!(
-                                "Clipboard write (text) attempt {} failed: {}. Retrying...",
-                                i + 1,
-                                last_err
-                            );
-                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                let mut payload = crate::clipboard::ClipboardPayload::default();
+                if clip.clip_type == "file" {
+                    match load_clip_files(pool, &uuid).await {
+                        Some(files) if !files.is_empty() => payload.files = Some(files),
+                        // The stored list is the only way to reproduce a file clip, so
+                        // refuse rather than silently copying nothing.
+                        _ => final_res = Err("This file clip has no stored file list".to_string()),
+                    }
+                } else {
+                    payload.text = Some(String::from_utf8_lossy(&clip.content).to_string());
+                }
+
+                if final_res.is_ok() {
+                    let mut last_err = String::new();
+                    for i in 0..5 {
+                        match crate::clipboard::write_clipboard_payload(&payload) {
+                            Ok(()) => {
+                                last_err.clear();
+                                break;
+                            }
+                            Err(e) => {
+                                last_err = e;
+                                log::warn!(
+                                    "Clipboard write attempt {} failed: {}. Retrying...",
+                                    i + 1,
+                                    last_err
+                                );
+                                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                            }
                         }
                     }
-                }
-                if !last_err.is_empty() {
-                    final_res = Err(format!("Failed to set clipboard text: {}", last_err));
+                    if !last_err.is_empty() {
+                        final_res = Err(format!("Failed to write clip to clipboard: {last_err}"));
+                    }
                 }
             }
 

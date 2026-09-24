@@ -14,9 +14,9 @@ use std::os::windows::ffi::OsStrExt;
 use std::sync::Arc;
 use tauri_plugin_clipboard_x::{read_text, start_listening};
 use uuid::Uuid;
-use windows::Win32::Foundation::HGLOBAL;
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::MAX_PATH;
+use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
 #[cfg(target_os = "windows")]
 use windows::Win32::Graphics::Gdi::{
     CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
@@ -29,10 +29,13 @@ use windows::Win32::Storage::FileSystem::{
 };
 #[cfg(target_os = "windows")]
 use windows::Win32::System::DataExchange::{
-    CloseClipboard, GetClipboardData, GetClipboardOwner, IsClipboardFormatAvailable, OpenClipboard,
+    CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardOwner,
+    IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
 };
 #[cfg(target_os = "windows")]
-use windows::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
+use windows::Win32::System::Memory::{
+    GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE,
+};
 #[cfg(target_os = "windows")]
 use windows::Win32::System::ProcessStatus::{GetModuleBaseNameW, GetModuleFileNameExW};
 #[cfg(target_os = "windows")]
@@ -220,6 +223,97 @@ fn read_clipboard_file_list() -> Result<Vec<String>, String> {
     let bytes = unsafe { std::slice::from_raw_parts(ptr, GlobalSize(hglobal)) };
     crate::clipboard_formats::parse_hdrop(bytes)
         .map_err(|e| format!("parse CF_HDROP failed: {e:?}"))
+}
+
+/// `#define CF_UNICODETEXT 13`.
+const CF_UNICODETEXT: u32 = 13;
+
+/// The formats to place on the clipboard for one clip.
+///
+/// Several are written at once on purpose: the target application picks whichever
+/// it understands, which is what lets a clip paste back in the shape it was copied
+/// in rather than always degrading to plain text.
+#[derive(Default)]
+pub struct ClipboardPayload {
+    pub text: Option<String>,
+    pub files: Option<Vec<String>>,
+}
+
+impl ClipboardPayload {
+    pub fn is_empty(&self) -> bool {
+        self.text.is_none() && self.files.as_ref().is_none_or(|files| files.is_empty())
+    }
+}
+
+/// Replaces the clipboard contents with `payload`.
+///
+/// The caller is responsible for having taken `CLIPBOARD_SYNC` and for having
+/// stopped the clipboard monitor, so that this replacement is not captured back
+/// as a new clip.
+pub fn write_clipboard_payload(payload: &ClipboardPayload) -> Result<(), String> {
+    if payload.is_empty() {
+        return Err("clip has no clipboard formats to write".to_string());
+    }
+
+    let _session = ClipboardSession::open()?;
+    // Emptying first is what makes this a replacement. Without it the previous
+    // clipboard contents would remain reachable under the formats we do not set.
+    unsafe { EmptyClipboard() }.map_err(|e| format!("EmptyClipboard failed: {e}"))?;
+
+    if let Some(files) = payload.files.as_ref().filter(|files| !files.is_empty()) {
+        set_clipboard_bytes(CF_HDROP, &crate::clipboard_formats::build_hdrop(files))?;
+    }
+    if let Some(text) = payload.text.as_deref() {
+        set_clipboard_bytes(CF_UNICODETEXT, &to_utf16_bytes(text))?;
+    }
+
+    Ok(())
+}
+
+/// UTF-16LE followed by a terminating NUL, the layout `CF_UNICODETEXT` requires.
+fn to_utf16_bytes(text: &str) -> Vec<u8> {
+    let mut out: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    out.extend_from_slice(&0u16.to_le_bytes());
+    out
+}
+
+/// Copies `bytes` into a movable global allocation and hands the allocation to the
+/// clipboard.
+fn set_clipboard_bytes(format: u32, bytes: &[u8]) -> Result<(), String> {
+    if bytes.is_empty() {
+        return Err(format!(
+            "refusing to set format {format} to an empty payload"
+        ));
+    }
+
+    let hglobal = unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes.len()) }
+        .map_err(|e| format!("GlobalAlloc for format {format} failed: {e}"))?;
+
+    let dest = unsafe { GlobalLock(hglobal) } as *mut u8;
+    if dest.is_null() {
+        unsafe {
+            let _ = GlobalFree(Some(hglobal));
+        }
+        return Err(format!("GlobalLock for format {format} returned null"));
+    }
+    // SAFETY: the allocation is exactly `bytes.len()` long and stays locked until the
+    // unlock below, and the two buffers cannot overlap.
+    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), dest, bytes.len()) };
+    unsafe {
+        let _ = GlobalUnlock(hglobal);
+    }
+
+    // Ownership transfers to the clipboard only on success, so on failure the handle
+    // is still ours and has to be freed or it leaks.
+    match unsafe { SetClipboardData(format, Some(HANDLE(hglobal.0))) } {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            unsafe {
+                let _ = GlobalFree(Some(hglobal));
+            }
+            Err(format!("SetClipboardData for format {format} failed: {e}"))
+        }
+    }
 }
 
 async fn process_clipboard_change(
@@ -1044,5 +1138,51 @@ pub fn send_paste_input(method: &str) {
 
         let result = SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
         log::info!("send_paste_input: SendInput returned {}", result);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn utf16_bytes_are_little_endian_and_nul_terminated() {
+        assert_eq!(to_utf16_bytes("A"), vec![0x41, 0x00, 0x00, 0x00]);
+    }
+
+    /// Anything above U+FFFF has to become a surrogate pair, or the text pastes back
+    /// mangled.
+    #[test]
+    fn utf16_bytes_encode_non_bmp_characters_as_surrogate_pairs() {
+        // U+1F600 -> D83D DE00
+        assert_eq!(
+            to_utf16_bytes("\u{1F600}"),
+            vec![0x3D, 0xD8, 0x00, 0xDE, 0x00, 0x00]
+        );
+    }
+
+    #[test]
+    fn utf16_bytes_of_empty_text_is_just_the_terminator() {
+        assert_eq!(to_utf16_bytes(""), vec![0x00, 0x00]);
+    }
+
+    #[test]
+    fn a_payload_counts_as_empty_only_when_it_has_nothing_to_write() {
+        assert!(ClipboardPayload::default().is_empty());
+        assert!(ClipboardPayload {
+            text: None,
+            files: Some(Vec::new()),
+        }
+        .is_empty());
+        assert!(!ClipboardPayload {
+            text: Some(String::new()),
+            files: None,
+        }
+        .is_empty());
+        assert!(!ClipboardPayload {
+            text: None,
+            files: Some(vec![r"C:\a.txt".to_string()]),
+        }
+        .is_empty());
     }
 }
