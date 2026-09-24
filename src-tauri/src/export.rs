@@ -93,6 +93,17 @@ pub fn suggested_file_name() -> String {
     )
 }
 
+/// Formats a timestamp the way SQLite's `CURRENT_TIMESTAMP` does.
+///
+/// Every column written by the application uses that form. A `DateTime` bound directly
+/// is encoded as RFC 3339 instead, and the grid orders this column as text, so the two
+/// forms do not sort together: "2026-09-24T12:00:00+00:00" compares greater than
+/// "2026-09-24 23:59:59" because `T` sorts after a space. Mixed formats therefore put
+/// every imported row ahead of every captured one, whatever the times say.
+fn sqlite_timestamp(value: chrono::DateTime<chrono::Utc>) -> String {
+    value.format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
 #[derive(sqlx::FromRow)]
 struct ExportClipRow {
     uuid: String,
@@ -296,8 +307,8 @@ pub async fn import_bundle(pool: &SqlitePool, bundle: &Bundle) -> Result<ImportR
         .bind(&clip.source_app)
         .bind(&metadata)
         .bind(crate::commands::normalise_title(clip.title.clone()))
-        .bind(created_at)
-        .bind(created_at)
+        .bind(sqlite_timestamp(created_at))
+        .bind(sqlite_timestamp(created_at))
         .execute(&mut *transaction)
         .await
         .map_err(|e| e.to_string())?;
@@ -820,5 +831,56 @@ mod tests {
         let report = import_bundle_json(&db.pool, &json).await.expect("import");
 
         assert_eq!(report.clips_imported, 1);
+    }
+
+    /// The grid orders `created_at` as text, so an imported row has to use the same
+    /// textual form as a captured one. Binding a DateTime directly produces RFC 3339,
+    /// which sorts ahead of every captured row because `T` follows a space.
+    #[tokio::test]
+    async fn an_imported_timestamp_sorts_with_captured_ones() {
+        let source = test_db().await;
+        let folder = make_folder(&source, "work").await;
+        insert_clip(&source, "imported", "text", "payload", Some(folder)).await;
+        let bundle = export_bundle(&source.pool).await.expect("export");
+
+        let target = test_db().await;
+        import_bundle(&target.pool, &bundle).await.expect("import");
+
+        // Deliberately a day ahead, so the expected order does not depend on which of
+        // two rows inside the same second happens to win.
+        sqlx::query(
+            r#"INSERT INTO clips (uuid, clip_type, content, content_hash, text_preview,
+                                  created_at, last_accessed)
+               VALUES ('captured', 'text', x'', 'hash-captured', 'p',
+                       datetime('now', '+1 day'), datetime('now', '+1 day'))"#,
+        )
+        .execute(&target.pool)
+        .await
+        .expect("insert captured");
+
+        // The import mints a new uuid, since ids only mean anything inside the database
+        // that produced them, so the imported row is found by exclusion.
+        let imported_at: String =
+            sqlx::query_scalar("SELECT created_at FROM clips WHERE uuid != 'captured' LIMIT 1")
+                .fetch_one(&target.pool)
+                .await
+                .expect("read imported timestamp");
+
+        assert!(
+            !imported_at.contains('T'),
+            "an imported timestamp must not be RFC 3339: {imported_at}"
+        );
+        assert_eq!(
+            imported_at.len(),
+            19,
+            "expected YYYY-MM-DD HH:MM:SS, got {imported_at}"
+        );
+
+        let first: String =
+            sqlx::query_scalar("SELECT uuid FROM clips ORDER BY created_at DESC LIMIT 1")
+                .fetch_one(&target.pool)
+                .await
+                .expect("read first row");
+        assert_eq!(first, "captured", "the newer captured clip must sort first");
     }
 }
