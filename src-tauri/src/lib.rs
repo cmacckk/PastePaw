@@ -23,6 +23,7 @@ mod commands;
 mod constants;
 mod database;
 mod models;
+mod pins;
 mod retention;
 mod settings_commands;
 mod settings_manager;
@@ -219,7 +220,9 @@ pub fn run_app() {
             {
                 let retention_settings = app.state::<Arc<SettingsManager>>().get();
                 let pool_for_retention = db_arc.pool.clone();
-                get_runtime().unwrap().block_on(async move {
+                get_runtime()
+                    .expect("the global runtime is created before setup runs")
+                    .block_on(async move {
                     match retention::prune(
                         &pool_for_retention,
                         retention_settings.auto_delete_days,
@@ -387,7 +390,8 @@ pub fn run_app() {
             commands::get_available_update,
             commands::check_update_now,
             commands::install_update,
-            commands::prune_history
+            commands::prune_history,
+            commands::toggle_pin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

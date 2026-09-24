@@ -692,6 +692,26 @@ pub async fn delete_clip(
     Ok(())
 }
 
+/// Saves a clip into the built-in folder, or takes it back out.
+///
+/// Returns the state after the toggle so the window does not have to guess at it.
+#[tauri::command]
+pub async fn toggle_pin(
+    clip_id: String,
+    db: tauri::State<'_, Arc<Database>>,
+    window: tauri::WebviewWindow,
+) -> Result<bool, String> {
+    let is_pinned = crate::pins::toggle_pin(&db.pool, &clip_id).await?;
+
+    // The grid groups by folder and the folder counts include this clip, so both
+    // the list and the sidebar need to reload.
+    let _ = window.emit("clipboard-change", ());
+
+    log::info!("toggle_pin: clip {clip_id} pinned={is_pinned}");
+
+    Ok(is_pinned)
+}
+
 #[tauri::command]
 pub async fn move_to_folder(
     clip_id: String,
@@ -765,6 +785,20 @@ pub async fn delete_folder(
     let pool = &db.pool;
 
     let folder_id: i64 = id.parse().map_err(|_| "Invalid folder ID")?;
+
+    // The built-in folder holds every pinned clip, so deleting it would take those
+    // clips with it. It is not the user's to remove.
+    let is_system: Option<i64> = sqlx::query_scalar("SELECT is_system FROM folders WHERE id = ?")
+        .bind(folder_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match is_system {
+        None => return Err("Folder not found".to_string()),
+        Some(flag) if flag != 0 => return Err("The built-in folder cannot be deleted".to_string()),
+        Some(_) => {}
+    }
 
     // Fetch image file paths BEFORE deleting clips, because ON DELETE CASCADE
     // on clip_images will remove the rows automatically, leaking files on disk.
