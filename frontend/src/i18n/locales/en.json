@@ -21,6 +21,11 @@
     "fileCount": "{{count}} files",
     "moreFiles": "+{{count}} more"
   },
+  "clipTypes": {
+    "text": "Text",
+    "image": "Images",
+    "file": "Files"
+  },
   "folders": {
     "all": "All Clips",
     "pinned": "Pinned",

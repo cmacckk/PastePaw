@@ -24,6 +24,7 @@ function App() {
   const [clips, setClips] = useState<AppClipboardItem[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
@@ -68,6 +69,11 @@ function App() {
   const appWindow = getCurrentWindow();
   const selectedFolderRef = useRef(selectedFolder);
   selectedFolderRef.current = selectedFolder;
+
+  // Written through a ref as well, so a reload triggered by a toggle reads the new
+  // value instead of the one from before the state update.
+  const selectedTypesRef = useRef<string[]>(selectedTypes);
+  selectedTypesRef.current = selectedTypes;
   const clipsRef = useRef(clips);
   clipsRef.current = clips;
   const loadPerfIdRef = useRef(0);
@@ -189,7 +195,7 @@ function App() {
           data = await invoke<AppClipboardItem[]>('search_clips', {
             query: searchQuery,
             filterId: folderId,
-            filterTypes: null,
+            filterTypes: selectedTypesRef.current.length > 0 ? selectedTypesRef.current : null,
             limit: 20,
             offset: currentOffset,
           });
@@ -198,7 +204,7 @@ function App() {
           if (perfLogEnabled) invokeStart = performance.now();
           data = await invoke<AppClipboardItem[]>('get_clips', {
             filterId: folderId,
-            filterTypes: null,
+            filterTypes: selectedTypesRef.current.length > 0 ? selectedTypesRef.current : null,
             limit: 20,
             offset: currentOffset,
             previewOnly: true,
@@ -345,7 +351,7 @@ function App() {
       }
     };
 
-    const handleGlobalMouseUp = (_: MouseEvent) => {
+    const handleGlobalMouseUp = () => {
       // Always clear pending drag on mouse up
       if (dragStateRef.current.pendingDrag) {
         dragStateRef.current.pendingDrag = null;
@@ -546,6 +552,20 @@ function App() {
     // Highlight it first, so the selection matches whatever is about to be pasted.
     setSelectedClipId(clip.id);
     handlePaste(clip.id);
+  };
+
+  /// Toggles one clip type in the filter and reloads from the first page.
+  const handleToggleType = (type: string) => {
+    const current = selectedTypesRef.current;
+    const next = current.includes(type)
+      ? current.filter((entry) => entry !== type)
+      : [...current, type];
+
+    // The ref is written here rather than waiting for the next render, because the
+    // reload below would otherwise read the previous value.
+    selectedTypesRef.current = next;
+    setSelectedTypes(next);
+    loadClips(selectedFolderRef.current, false, searchQuery);
   };
 
   useKeyboard({
@@ -776,6 +796,8 @@ function App() {
             folders={folders}
             selectedFolder={selectedFolder}
             onSelectFolder={handleSelectFolder}
+            selectedTypes={selectedTypes}
+            onToggleType={handleToggleType}
             showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchChange={handleSearch}

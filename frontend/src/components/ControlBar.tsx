@@ -1,5 +1,5 @@
 import { FolderItem } from '../types';
-import { Search, Plus, MoreHorizontal, X, ArrowUpCircle } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, X, ArrowUpCircle, AlignLeft, Image, File } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 
@@ -19,11 +19,26 @@ interface ControlBarProps {
   onDragHover: (folderId: string | null) => void;
   onDragLeave: () => void;
   totalClipCount: number;
+  /** Clip types currently filtered in. Empty means every type is shown. */
+  selectedTypes: string[];
+  onToggleType: (type: string) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folderId: string) => void;
   theme?: 'light' | 'dark';
   style?: React.CSSProperties;
   updateAvailable?: import('../hooks/useAutoUpdater').UpdateInfo | null;
 }
+
+/**
+ * The clip types capture actually produces, in the order they are shown.
+ *
+ * There is deliberately no link or colour entry: those are not clip types, and a
+ * filter for them would promise something capture never produces.
+ */
+const CLIP_TYPE_FILTERS = [
+  { type: 'text', Icon: AlignLeft, labelKey: 'clipTypes.text' },
+  { type: 'image', Icon: Image, labelKey: 'clipTypes.image' },
+  { type: 'file', Icon: File, labelKey: 'clipTypes.file' },
+] as const;
 
 export function ControlBar({
   folders,
@@ -40,6 +55,8 @@ export function ControlBar({
   onDragHover,
   onDragLeave,
   totalClipCount,
+  selectedTypes,
+  onToggleType,
   onFolderContextMenu,
   theme = 'dark',
   style,
@@ -347,6 +364,41 @@ export function ControlBar({
               {cat.count !== undefined && cat.count > 0 && (
                 <span className="ml-2 text-[10px] opacity-70">{cat.count}</span>
               )}
+            </button>
+          );
+        })}
+
+        {/*
+          The type filter shares the folder row instead of taking a row of its own:
+          the window is 266 px tall, so a second row would mean resizing it, and the
+          sizing path is exactly what issue #12 was about. The divider is what keeps
+          the two filter dimensions apart.
+        */}
+        <span
+          data-el="filter-divider"
+          aria-hidden="true"
+          className="mx-1 h-4 w-px shrink-0 self-center bg-border"
+        />
+
+        {CLIP_TYPE_FILTERS.map(({ type, Icon, labelKey }) => {
+          const isActive = selectedTypes.includes(type);
+          return (
+            <button
+              key={type}
+              data-el="type-filter"
+              data-clip-type={type}
+              type="button"
+              title={t(labelKey)}
+              aria-pressed={isActive}
+              onClick={() => onToggleType(type)}
+              className={clsx(
+                'shrink-0 rounded-full px-2.5 py-1.5 transition-all',
+                isActive
+                  ? 'bg-primary/25 text-foreground ring-1 ring-primary/50'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              )}
+            >
+              <Icon size={14} />
             </button>
           );
         })}

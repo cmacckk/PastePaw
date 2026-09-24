@@ -21,6 +21,11 @@
     "fileCount": "{{count}} 个文件",
     "moreFiles": "还有 {{count}} 个"
   },
+  "clipTypes": {
+    "text": "文本",
+    "image": "图片",
+    "file": "文件"
+  },
   "folders": {
     "all": "全部",
     "pinned": "收藏",
