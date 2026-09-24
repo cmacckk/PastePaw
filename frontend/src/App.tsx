@@ -10,7 +10,6 @@ import { DragPreview } from './components/DragPreview';
 import { ContextMenu } from './components/ContextMenu';
 import { FolderModal } from './components/FolderModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
-import { AiResultDialog } from './components/AiResultDialog';
 import { useKeyboard } from './hooks/useKeyboard';
 import { useTheme } from './hooks/useTheme';
 import { useLanguage } from './hooks/useLanguage';
@@ -703,28 +702,6 @@ function App() {
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
 
   // AI Result State
-  const [aiResult, setAiResult] = useState({
-    isOpen: false,
-    title: '',
-    content: '',
-  });
-
-  const handleAiAction = async (clipId: string, action: string, title: string) => {
-    try {
-      const toastId = toast.loading(t('ai.processing'));
-      const result = await invoke<string>('ai_process_clip', { clipId, action });
-      toast.dismiss(toastId);
-      setAiResult({
-        isOpen: true,
-        title,
-        content: result,
-      });
-    } catch (error) {
-      toast.dismiss();
-      console.error('AI Processing Failed:', error);
-      toast.error(t('ai.error', { error: String(error) }));
-    }
-  };
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, type: 'card' | 'folder', itemId: string) => {
@@ -816,30 +793,6 @@ function App() {
                             title: clip?.title ?? '',
                           });
                         },
-                      },
-                      {
-                        label: `${settings?.ai_title_summarize || t('contextMenu.summarize')}`,
-                        onClick: () =>
-                          handleAiAction(contextMenu.itemId, 'summarize', t('ai.summary')),
-                      },
-                      {
-                        label: `${settings?.ai_title_translate || t('contextMenu.translate')}`,
-                        onClick: () =>
-                          handleAiAction(contextMenu.itemId, 'translate', t('ai.translation')),
-                      },
-                      {
-                        label: `${settings?.ai_title_explain_code || t('contextMenu.explainCode')}`,
-                        onClick: () =>
-                          handleAiAction(
-                            contextMenu.itemId,
-                            'explain_code',
-                            t('ai.codeExplanation')
-                          ),
-                      },
-                      {
-                        label: `${settings?.ai_title_fix_grammar || t('contextMenu.fixGrammar')}`,
-                        onClick: () =>
-                          handleAiAction(contextMenu.itemId, 'fix_grammar', t('ai.grammarCheck')),
                       },
                       {
                         label: t('contextMenu.delete'),
@@ -958,13 +911,6 @@ function App() {
                 setRenameClipTarget(null);
                 await handleRenameClip(target.id, name);
               }}
-            />
-
-            <AiResultDialog
-              isOpen={aiResult.isOpen}
-              title={aiResult.title}
-              content={aiResult.content}
-              onClose={() => setAiResult((prev) => ({ ...prev, isOpen: false }))}
             />
 
             <ConfirmDialog
