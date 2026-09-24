@@ -75,6 +75,7 @@ winget install XueshiQiao.PastePaw
 - `Enter` - 粘贴选中的项目
 - `Delete` - 删除选中的项目
 - `P` - 钉住/取消钉住选中的项目
+- `Ctrl + 1..9` - 粘贴列表中的第 N 项，`Ctrl + 1` 即最新一条
 - `Arrow Up/Down` - 上下导航列表
 ## 应用屏蔽 (排除列表)
 

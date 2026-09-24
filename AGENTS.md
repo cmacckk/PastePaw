@@ -121,6 +121,7 @@ pnpm install && pnpm dev
 | `Enter` | Paste selected item |
 | `Delete` | Delete selected item |
 | `P` | Pin/Unpin selected item |
+| `Ctrl+1` … `Ctrl+9` | Paste the nth item in the list (newest first) |
 | `↑` / `↓` | Navigate items |
 
 ## Tech Stack

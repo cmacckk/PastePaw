@@ -537,6 +537,15 @@ function App() {
     }
   };
 
+  /// Pastes the nth clip currently listed, for Ctrl+1..9.
+  const handlePasteIndex = (index: number) => {
+    const clip = clips[index];
+    if (!clip) return;
+    // Highlight it first, so the selection matches whatever is about to be pasted.
+    setSelectedClipId(clip.id);
+    handlePaste(clip.id);
+  };
+
   useKeyboard({
     onClose: () => appWindow.hide(),
     onSearch: () => setShowSearch(true),
@@ -545,6 +554,7 @@ function App() {
     onNavigateRight: handleNavigateRight,
     onPaste: handlePasteSelected,
     onPin: () => handlePin(selectedClipId),
+    onPasteIndex: handlePasteIndex,
   });
 
   const handleCreateFolder = async (name: string) => {

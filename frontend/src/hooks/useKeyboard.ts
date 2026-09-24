@@ -8,6 +8,8 @@ interface KeyboardOptions {
   onNavigateLeft?: () => void;
   onNavigateRight?: () => void;
   onPaste?: () => void;
+  /** Pastes the nth item currently on screen. Zero based, for Ctrl+1..9. */
+  onPasteIndex?: (index: number) => void;
 }
 
 export function useKeyboard(options: KeyboardOptions) {
@@ -21,6 +23,19 @@ export function useKeyboard(options: KeyboardOptions) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f' && options.onSearch) {
         e.preventDefault();
         options.onSearch();
+      }
+
+      // Ctrl+1..9 pastes the nth item on screen. The digit range is checked rather than
+      // a fixed list of keys, so both the number row and the numpad match.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key.length === 1 &&
+        e.key >= '1' &&
+        e.key <= '9' &&
+        options.onPasteIndex
+      ) {
+        e.preventDefault();
+        options.onPasteIndex(Number(e.key) - 1);
       }
 
       if (e.key === 'Delete' && options.onDelete) {

@@ -75,6 +75,7 @@ Download the latest installer directly from:
 - `Enter` - Paste selected item
 - `Delete` - Delete selected item
 - `P` - Pin/Unpin selected item
+- `Ctrl + 1..9` - Paste the nth item in the list, so `Ctrl + 1` is the newest
 - `Arrow Up/Down` - Navigate items
 
 
