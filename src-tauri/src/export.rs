@@ -620,6 +620,56 @@ mod tests {
         assert_eq!(parsed[MISSING_IMAGE_KEY], serde_json::json!(true));
     }
 
+    /// The accepted criterion is that the bundle can be read and edited by hand. This
+    /// edits one the way a person would in a text editor and imports the result.
+    #[tokio::test]
+    async fn a_hand_edited_bundle_imports() {
+        let source = test_db().await;
+        let folder = make_folder(&source, "work").await;
+        insert_clip(&source, "clip", "text", "original", Some(folder)).await;
+
+        let json =
+            serde_json::to_string_pretty(&export_bundle(&source.pool).await.expect("export"))
+                .expect("serialize");
+        assert!(
+            json.contains("\n  "),
+            "the bundle has to be pretty printed to be hand editable"
+        );
+
+        let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse the bundle");
+        value["clips"][0]["content"] = serde_json::json!("edited by hand");
+        value["clips"][0]["content_hash"] = serde_json::json!("hand-edited-hash");
+        value["folders"]
+            .as_array_mut()
+            .expect("folders array")
+            .push(serde_json::json!({
+                "name": "added by hand",
+                "icon": null,
+                "color": null,
+                "is_system": false
+            }));
+
+        let target = test_db().await;
+        let report = import_bundle_json(&target.pool, &value.to_string())
+            .await
+            .expect("import");
+
+        assert_eq!(report.clips_imported, 1);
+        assert_eq!(report.folders_created, 2);
+
+        let content: Vec<u8> = sqlx::query_scalar("SELECT content FROM clips LIMIT 1")
+            .fetch_one(&target.pool)
+            .await
+            .expect("read content");
+        assert_eq!(String::from_utf8_lossy(&content), "edited by hand");
+
+        let names: Vec<String> = sqlx::query_scalar("SELECT name FROM folders ORDER BY name")
+            .fetch_all(&target.pool)
+            .await
+            .expect("read folders");
+        assert_eq!(names, vec!["added by hand".to_string(), "work".to_string()]);
+    }
+
     #[tokio::test]
     async fn an_unsupported_version_is_rejected() {
         let db = test_db().await;
