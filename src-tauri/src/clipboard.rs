@@ -603,232 +603,236 @@ fn get_clipboard_owner_app_info() -> (
 
 #[cfg(target_os = "windows")]
 unsafe fn get_app_description(path: &str) -> Option<String> {
-    use std::ffi::c_void;
+    unsafe {
+        use std::ffi::c_void;
 
-    let wide_path: Vec<u16> = OsStr::new(path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
+        let wide_path: Vec<u16> = OsStr::new(path)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
 
-    let size = GetFileVersionInfoSizeW(windows::core::PCWSTR(wide_path.as_ptr()), None);
-    if size == 0 {
-        return None;
-    }
-
-    let mut data = vec![0u8; size as usize];
-    if GetFileVersionInfoW(
-        windows::core::PCWSTR(wide_path.as_ptr()),
-        Some(0),
-        size,
-        data.as_mut_ptr() as *mut _,
-    )
-    .is_err()
-    {
-        return None;
-    }
-
-    let mut lang_ptr: *mut c_void = std::ptr::null_mut();
-    let mut lang_len: u32 = 0;
-
-    let translation_query = OsStr::new("\\VarFileInfo\\Translation")
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect::<Vec<u16>>();
-
-    if !VerQueryValueW(
-        data.as_ptr() as *const _,
-        windows::core::PCWSTR(translation_query.as_ptr()),
-        &mut lang_ptr,
-        &mut lang_len,
-    )
-    .as_bool()
-    {
-        return None;
-    }
-
-    if lang_len < 4 {
-        return None;
-    }
-
-    let pairs = std::slice::from_raw_parts(lang_ptr as *const u16, (lang_len / 2) as usize);
-    let num_pairs = (lang_len / 4) as usize;
-
-    let mut lang_code = pairs[0];
-    let mut charset_code = pairs[1];
-
-    for i in 0..num_pairs {
-        let code = pairs[i * 2];
-        let charset = pairs[i * 2 + 1];
-
-        if code == 0x0804 {
-            lang_code = code;
-            charset_code = charset;
+        let size = GetFileVersionInfoSizeW(windows::core::PCWSTR(wide_path.as_ptr()), None);
+        if size == 0 {
+            return None;
         }
-    }
 
-    let keys = ["FileDescription", "ProductName"];
+        let mut data = vec![0u8; size as usize];
+        if GetFileVersionInfoW(
+            windows::core::PCWSTR(wide_path.as_ptr()),
+            Some(0),
+            size,
+            data.as_mut_ptr() as *mut _,
+        )
+        .is_err()
+        {
+            return None;
+        }
 
-    for key in keys {
-        let query_str = format!(
-            "\\StringFileInfo\\{:04x}{:04x}\\{}",
-            lang_code, charset_code, key
-        );
-        let query = OsStr::new(&query_str)
+        let mut lang_ptr: *mut c_void = std::ptr::null_mut();
+        let mut lang_len: u32 = 0;
+
+        let translation_query = OsStr::new("\\VarFileInfo\\Translation")
             .encode_wide()
             .chain(std::iter::once(0))
             .collect::<Vec<u16>>();
 
-        let mut desc_ptr: *mut c_void = std::ptr::null_mut();
-        let mut desc_len: u32 = 0;
-
-        if VerQueryValueW(
+        if !VerQueryValueW(
             data.as_ptr() as *const _,
-            windows::core::PCWSTR(query.as_ptr()),
-            &mut desc_ptr,
-            &mut desc_len,
+            windows::core::PCWSTR(translation_query.as_ptr()),
+            &mut lang_ptr,
+            &mut lang_len,
         )
         .as_bool()
         {
-            let desc = std::slice::from_raw_parts(desc_ptr as *const u16, desc_len as usize);
-            let len = if desc.last() == Some(&0) {
-                desc.len() - 1
-            } else {
-                desc.len()
-            };
-            if len > 0 {
-                return Some(String::from_utf16_lossy(&desc[..len]));
+            return None;
+        }
+
+        if lang_len < 4 {
+            return None;
+        }
+
+        let pairs = std::slice::from_raw_parts(lang_ptr as *const u16, (lang_len / 2) as usize);
+        let num_pairs = (lang_len / 4) as usize;
+
+        let mut lang_code = pairs[0];
+        let mut charset_code = pairs[1];
+
+        for i in 0..num_pairs {
+            let code = pairs[i * 2];
+            let charset = pairs[i * 2 + 1];
+
+            if code == 0x0804 {
+                lang_code = code;
+                charset_code = charset;
             }
         }
-    }
 
-    None
+        let keys = ["FileDescription", "ProductName"];
+
+        for key in keys {
+            let query_str = format!(
+                "\\StringFileInfo\\{:04x}{:04x}\\{}",
+                lang_code, charset_code, key
+            );
+            let query = OsStr::new(&query_str)
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect::<Vec<u16>>();
+
+            let mut desc_ptr: *mut c_void = std::ptr::null_mut();
+            let mut desc_len: u32 = 0;
+
+            if VerQueryValueW(
+                data.as_ptr() as *const _,
+                windows::core::PCWSTR(query.as_ptr()),
+                &mut desc_ptr,
+                &mut desc_len,
+            )
+            .as_bool()
+            {
+                let desc = std::slice::from_raw_parts(desc_ptr as *const u16, desc_len as usize);
+                let len = if desc.last() == Some(&0) {
+                    desc.len() - 1
+                } else {
+                    desc.len()
+                };
+                if len > 0 {
+                    return Some(String::from_utf16_lossy(&desc[..len]));
+                }
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(target_os = "windows")]
 unsafe fn extract_icon(path: &str) -> Option<String> {
-    use image::ImageEncoder;
+    unsafe {
+        use image::ImageEncoder;
 
-    let wide_path: Vec<u16> = OsStr::new(path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let mut shfi = SHFILEINFOW::default();
+        let wide_path: Vec<u16> = OsStr::new(path)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let mut shfi = SHFILEINFOW::default();
 
-    SHGetFileInfoW(
-        windows::core::PCWSTR(wide_path.as_ptr()),
-        windows::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL,
-        Some(&mut shfi as *mut _),
-        std::mem::size_of::<SHFILEINFOW>() as u32,
-        SHGFI_ICON | SHGFI_LARGEICON | SHGFI_USEFILEATTRIBUTES,
-    );
+        SHGetFileInfoW(
+            windows::core::PCWSTR(wide_path.as_ptr()),
+            windows::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL,
+            Some(&mut shfi as *mut _),
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            SHGFI_ICON | SHGFI_LARGEICON | SHGFI_USEFILEATTRIBUTES,
+        );
 
-    if shfi.hIcon.is_invalid() {
-        return None;
-    }
-
-    let icon = shfi.hIcon;
-    struct IconGuard(windows::Win32::UI::WindowsAndMessaging::HICON);
-    impl Drop for IconGuard {
-        fn drop(&mut self) {
-            unsafe {
-                let _ = DestroyIcon(self.0);
-            }
+        if shfi.hIcon.is_invalid() {
+            return None;
         }
-    }
-    let _guard = IconGuard(icon);
 
-    let mut icon_info = ICONINFO::default();
-    if GetIconInfo(icon, &mut icon_info).is_err() {
-        return None;
-    }
-
-    struct BitmapGuard(HBITMAP);
-    impl Drop for BitmapGuard {
-        fn drop(&mut self) {
-            unsafe {
-                if !self.0.is_invalid() {
-                    let _ = DeleteObject(self.0.into());
+        let icon = shfi.hIcon;
+        struct IconGuard(windows::Win32::UI::WindowsAndMessaging::HICON);
+        impl Drop for IconGuard {
+            fn drop(&mut self) {
+                unsafe {
+                    let _ = DestroyIcon(self.0);
                 }
             }
         }
-    }
-    let _bm_mask = BitmapGuard(icon_info.hbmMask);
-    let _bm_color = BitmapGuard(icon_info.hbmColor);
+        let _guard = IconGuard(icon);
 
-    let mut bm = BITMAP::default();
-    if GetObjectW(
-        icon_info.hbmMask.into(),
-        std::mem::size_of::<BITMAP>() as i32,
-        Some(&mut bm as *mut _ as *mut _),
-    ) == 0
-    {
-        return None;
-    }
+        let mut icon_info = ICONINFO::default();
+        if GetIconInfo(icon, &mut icon_info).is_err() {
+            return None;
+        }
 
-    let width = bm.bmWidth;
-    let height = if !icon_info.hbmColor.is_invalid() {
-        bm.bmHeight
-    } else {
-        bm.bmHeight / 2
-    };
+        struct BitmapGuard(HBITMAP);
+        impl Drop for BitmapGuard {
+            fn drop(&mut self) {
+                unsafe {
+                    if !self.0.is_invalid() {
+                        let _ = DeleteObject(self.0.into());
+                    }
+                }
+            }
+        }
+        let _bm_mask = BitmapGuard(icon_info.hbmMask);
+        let _bm_color = BitmapGuard(icon_info.hbmColor);
 
-    let screen_dc = GetDC(None);
-    let mem_dc = CreateCompatibleDC(Some(screen_dc));
-    let mem_bm = CreateCompatibleBitmap(screen_dc, width, height);
+        let mut bm = BITMAP::default();
+        if GetObjectW(
+            icon_info.hbmMask.into(),
+            std::mem::size_of::<BITMAP>() as i32,
+            Some(&mut bm as *mut _ as *mut _),
+        ) == 0
+        {
+            return None;
+        }
 
-    let old_obj = SelectObject(mem_dc, mem_bm.into());
+        let width = bm.bmWidth;
+        let height = if !icon_info.hbmColor.is_invalid() {
+            bm.bmHeight
+        } else {
+            bm.bmHeight / 2
+        };
 
-    let _ = DrawIconEx(mem_dc, 0, 0, icon, width, height, 0, None, DI_NORMAL);
+        let screen_dc = GetDC(None);
+        let mem_dc = CreateCompatibleDC(Some(screen_dc));
+        let mem_bm = CreateCompatibleBitmap(screen_dc, width, height);
 
-    let bi = BITMAPINFOHEADER {
-        biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-        biWidth: width,
-        biHeight: -height,
-        biPlanes: 1,
-        biBitCount: 32,
-        biCompression: BI_RGB.0,
-        ..Default::default()
-    };
+        let old_obj = SelectObject(mem_dc, mem_bm.into());
 
-    let mut pixels = vec![0u8; (width * height * 4) as usize];
+        let _ = DrawIconEx(mem_dc, 0, 0, icon, width, height, 0, None, DI_NORMAL);
 
-    GetDIBits(
-        mem_dc,
-        mem_bm,
-        0,
-        height as u32,
-        Some(pixels.as_mut_ptr() as *mut _),
-        &mut BITMAPINFO {
-            bmiHeader: bi,
+        let bi = BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: width,
+            biHeight: -height,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB.0,
             ..Default::default()
-        },
-        DIB_RGB_COLORS,
-    );
+        };
 
-    SelectObject(mem_dc, old_obj);
-    let _ = DeleteDC(mem_dc);
-    let _ = DeleteObject(mem_bm.into());
-    let _ = ReleaseDC(None, screen_dc);
+        let mut pixels = vec![0u8; (width * height * 4) as usize];
 
-    for chunk in pixels.chunks_exact_mut(4) {
-        let b = chunk[0];
-        let r = chunk[2];
-        chunk[0] = r;
-        chunk[2] = b;
-    }
-
-    let mut png_data = Vec::new();
-    let encoder = image::codecs::png::PngEncoder::new(&mut png_data);
-    encoder
-        .write_image(
-            &pixels,
-            width as u32,
+        GetDIBits(
+            mem_dc,
+            mem_bm,
+            0,
             height as u32,
-            image::ColorType::Rgba8,
-        )
-        .ok()?;
+            Some(pixels.as_mut_ptr() as *mut _),
+            &mut BITMAPINFO {
+                bmiHeader: bi,
+                ..Default::default()
+            },
+            DIB_RGB_COLORS,
+        );
 
-    Some(BASE64.encode(&png_data))
+        SelectObject(mem_dc, old_obj);
+        let _ = DeleteDC(mem_dc);
+        let _ = DeleteObject(mem_bm.into());
+        let _ = ReleaseDC(None, screen_dc);
+
+        for chunk in pixels.chunks_exact_mut(4) {
+            let b = chunk[0];
+            let r = chunk[2];
+            chunk[0] = r;
+            chunk[2] = b;
+        }
+
+        let mut png_data = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut png_data);
+        encoder
+            .write_image(
+                &pixels,
+                width as u32,
+                height as u32,
+                image::ColorType::Rgba8,
+            )
+            .ok()?;
+
+        Some(BASE64.encode(&png_data))
+    }
 }
 
 #[cfg(target_os = "windows")]
