@@ -112,7 +112,9 @@ jobs:
             echo "args=" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::No signing key; skipping updater artifacts."
-            CONFIG=".github/tauri-no-updater-artifacts.json"
+            # Absolute: the action runs tauri from src-tauri, so a path
+            # relative to the repository root would not resolve.
+            CONFIG="$GITHUB_WORKSPACE/.github/tauri-no-updater-artifacts.json"
             echo "args=--config $CONFIG" >> "$GITHUB_OUTPUT"
           fi
 
@@ -121,7 +123,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }} # yamllint disable-line rule:line-length
         with:
           projectPath: src-tauri
           releaseId: ${{ needs.create-release.outputs.release_id }}
@@ -175,8 +177,10 @@ jobs:
 
       - name: Download installers
         run: |
-          gh release download ${{ github.ref_name }} --pattern "*x64-setup.exe" --dir ./installers
-          gh release download ${{ github.ref_name }} --pattern "*arm64-setup.exe" --dir ./installers
+          gh release download ${{ github.ref_name }} \
+            --pattern "*x64-setup.exe" --dir ./installers
+          gh release download ${{ github.ref_name }} \
+            --pattern "*arm64-setup.exe" --dir ./installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -189,11 +193,14 @@ jobs:
           X64_SHA=$(sha256sum "$X64_FILE" | cut -d' ' -f1)
           ARM64_SHA=$(sha256sum "$ARM64_FILE" | cut -d' ' -f1)
 
-          # Write hashes BEFORE curl so they are always recorded even if VT upload fails
+          # Write hashes BEFORE curl so they are recorded even if the
+          # upload below fails.
           echo "X64_SHA=${X64_SHA}" >> $GITHUB_OUTPUT
           echo "ARM64_SHA=${ARM64_SHA}" >> $GITHUB_OUTPUT
-          echo "X64_URL=https://www.virustotal.com/gui/file/$X64_SHA" >> $GITHUB_OUTPUT
-          echo "ARM64_URL=https://www.virustotal.com/gui/file/$ARM64_SHA" >> $GITHUB_OUTPUT
+          echo "X64_URL=https://www.virustotal.com/gui/file/$X64_SHA" \
+            >> $GITHUB_OUTPUT
+          echo "ARM64_URL=https://www.virustotal.com/gui/file/$ARM64_SHA" \
+            >> $GITHUB_OUTPUT
 
           # VT upload is informational — failures must not block the release
           curl -s --request POST \
@@ -210,7 +217,8 @@ jobs:
 
       - name: Append VirusTotal results to release notes
         run: |
-          gh release view ${{ github.ref_name }} --json body -q .body > release_body.txt
+          gh release view ${{ github.ref_name }} --json body -q .body \
+            > release_body.txt
           cat >> release_body.txt << EOF
 
           ---
@@ -231,8 +239,10 @@ jobs:
 
       - name: Verify installer hashes are stable
         run: |
-          gh release download ${{ github.ref_name }} --pattern "*x64-setup.exe" --dir ./verify
-          gh release download ${{ github.ref_name }} --pattern "*arm64-setup.exe" --dir ./verify
+          gh release download ${{ github.ref_name }} \
+            --pattern "*x64-setup.exe" --dir ./verify
+          gh release download ${{ github.ref_name }} \
+            --pattern "*arm64-setup.exe" --dir ./verify
 
           X64_CURRENT=$(sha256sum ./verify/*x64-setup.exe | cut -d' ' -f1)
           ARM64_CURRENT=$(sha256sum ./verify/*arm64-setup.exe | cut -d' ' -f1)
@@ -263,4 +273,3 @@ jobs:
           installers-regex: '.*-setup\.exe$'
           release-tag: ${{ github.ref_name }}
           token: ${{ secrets.WINGET_TOKEN }}
-

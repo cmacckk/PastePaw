@@ -24,3 +24,8 @@ data/
 
 # Don't know why this file is always created...
 nul
+
+# pnpm 12 wants an explicit allowBuilds file, but pnpm 9 (used by CI) rejects a
+# workspace file without a packages field. Kept local-only so the release
+# workflow keeps the behaviour it was written against.
+pnpm-workspace.yaml
