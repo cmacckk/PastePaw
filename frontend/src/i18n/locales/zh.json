@@ -33,6 +33,7 @@
     "all": "全部",
     "pinned": "收藏",
     "savedInFolder": "已保存到文件夹",
+    "jumpToFolder": "查看所在列表",
     "addFolder": "添加文件夹",
     "createFolder": "创建文件夹",
     "renameFolder": "重命名文件夹",

@@ -33,6 +33,7 @@
     "all": "All Clips",
     "pinned": "Pinned",
     "savedInFolder": "Saved in a folder",
+    "jumpToFolder": "Show this list",
     "addFolder": "Add Folder",
     "createFolder": "Create Folder",
     "renameFolder": "Rename Folder",

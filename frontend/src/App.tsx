@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -562,6 +562,25 @@ function App() {
     handlePaste(clip.id);
   };
 
+  /// Folder id to display name. The built-in folder stores a stable name but is never
+  /// shown by it, so it is resolved through the translation here.
+  const folderNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    for (const folder of folders) {
+      names[folder.id] = folder.is_system ? t('folders.pinned') : folder.name;
+    }
+    return names;
+  }, [folders, t]);
+
+  /// Navigates to the folder a clip is saved in, which is what Paste offers as
+  /// "Show in <list>". Both updates land in one render, so the effect that watches
+  /// folder and query reloads exactly once.
+  const handleJumpToFolder = (folderId: string) => {
+    setSearchQuery('');
+    setShowSearch(false);
+    handleSelectFolder(folderId);
+  };
+
   /// Toggles one clip type in the filter and reloads from the first page.
   const handleToggleType = (type: string) => {
     const current = selectedTypesRef.current;
@@ -874,6 +893,9 @@ function App() {
               // Simulated Drag Props
               onDragStart={startDrag}
               onCardContextMenu={(e, clipId) => handleContextMenu(e, 'card', clipId)}
+              folderNames={folderNames}
+              currentFolderId={selectedFolder}
+              onJumpToFolder={handleJumpToFolder}
             />
 
             {/* Add/Rename Folder Modal Overlay */}

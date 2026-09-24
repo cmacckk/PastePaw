@@ -4,7 +4,7 @@ import { useMemo, memo, useState, forwardRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { PREVIEW_CHAR_LIMIT } from '../constants';
-import { Copy, Check, File, Pin } from 'lucide-react';
+import { Copy, Check, File, Pin, FolderOpen } from 'lucide-react';
 import { useMotionValue, useMotionTemplate, motion } from 'framer-motion';
 
 interface ClipCardProps {
@@ -16,6 +16,12 @@ interface ClipCardProps {
   onCopy: () => void;
   onDragStart: (clipId: string, startX: number, startY: number) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  /**
+   * Name of the folder this clip is saved in, shown only when the grid is not already
+   * showing that folder. Undefined means there is nothing to show.
+   */
+  folderName?: string;
+  onJumpToFolder?: (folderId: string) => void;
 }
 
 /** How many file names a card lists before the rest are summarised. */
@@ -30,7 +36,7 @@ const fileNameOf = (path: string): string => {
 
 export const ClipCard = memo(
   forwardRef<HTMLDivElement, ClipCardProps>(function ClipCard(
-    { clip, isSelected, layout, onSelect, onPaste, onCopy, onDragStart, onContextMenu }: ClipCardProps,
+    { clip, isSelected, layout, onSelect, onPaste, onCopy, onDragStart, onContextMenu, folderName, onJumpToFolder }: ClipCardProps,
     ref
   ) {
     const { t } = useTranslation();
@@ -257,15 +263,33 @@ export const ClipCard = memo(
 
           <div
             data-el="clip-card-footer"
-            className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-card via-card/100 to-transparent/0 px-3 py-1.5"
+            className="absolute bottom-0 left-0 right-0 z-10 flex items-center gap-2 bg-gradient-to-t from-card via-card/100 to-transparent/0 px-3 py-1.5"
           >
-            <span className="text-[11px] font-medium text-muted-foreground/50">
+            <span className="shrink-0 text-[11px] font-medium text-muted-foreground/50">
               {clip.clip_type === 'image'
                 ? t('clipList.imageSize', { size: imageSizeKb })
                 : clip.clip_type === 'file'
                   ? t('clipList.fileCount', { count: filePaths.length })
                   : t('clipList.textLength', { count: clip.content.length })}
             </span>
+            {folderName && clip.folder_id && (
+              <button
+                data-el="clip-card-folder"
+                type="button"
+                // Both are stopped: the card selects on click and begins a drag on
+                // mouse down, and neither should happen when jumping to the folder.
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (clip.folder_id) onJumpToFolder?.(clip.folder_id);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                title={t('folders.jumpToFolder')}
+                className="ml-auto flex min-w-0 items-center gap-1 rounded-full bg-accent/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <FolderOpen size={10} className="shrink-0" />
+                <span className="truncate">{folderName}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

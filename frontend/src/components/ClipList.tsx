@@ -19,6 +19,11 @@ interface ClipListProps {
   onLoadMore: () => void;
   onDragStart: (clipId: string, startX: number, startY: number) => void;
   onCardContextMenu?: (e: React.MouseEvent, clipId: string) => void;
+  /** Folder id to display name, for the badge saying where a clip is saved. */
+  folderNames?: Record<string, string>;
+  /** The folder being viewed, so its own name is not repeated on every card. */
+  currentFolderId?: string | null;
+  onJumpToFolder?: (folderId: string) => void;
 }
 
 export function ClipList({
@@ -34,6 +39,9 @@ export function ClipList({
   onLoadMore,
   onDragStart,
   onCardContextMenu,
+  folderNames,
+  currentFolderId,
+  onJumpToFolder,
 }: ClipListProps) {
   const { t } = useTranslation();
   const [gridApi, setGridApi] = useGridCallbackRef();
@@ -179,6 +187,12 @@ export function ClipList({
           onCopy={() => onCopy(clip.id)}
           onDragStart={onDragStart}
           onContextMenu={(e: React.MouseEvent) => onCardContextMenu?.(e, clip.id)}
+          folderName={
+            clip.folder_id && clip.folder_id !== currentFolderId
+              ? folderNames?.[clip.folder_id]
+              : undefined
+          }
+          onJumpToFolder={onJumpToFolder}
         />
       </div>
     );
