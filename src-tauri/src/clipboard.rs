@@ -803,16 +803,20 @@ async fn process_clipboard_change(
     );
     let emit_ms = emit_started.elapsed().as_millis();
 
-    // Retention runs on every ingest so the history cannot drift past its limit during
-    // a session. The guard inside `prune` keeps this cheap when nothing is over.
-    match crate::retention::prune(pool, retention.0, retention.1).await {
-        Ok(report) if report.total() > 0 => {
-            log::info!("Retention: removed {} clip(s)", report.total());
-            // The window still has the pruned clips in its list.
-            let _ = app.emit("clipboard-change", ());
+    // Retention only has to run when a new clip lands, because that is the only event
+    // that can push the history past a limit. A paste merely bumps an existing row's
+    // timestamp, so running it there would add a query to the hot path for nothing.
+    // The guard inside `prune` keeps the count cheap when nothing is over.
+    if !was_existing {
+        match crate::retention::prune(pool, retention.0, retention.1).await {
+            Ok(report) if report.total() > 0 => {
+                log::info!("Retention: removed {} clip(s)", report.total());
+                // The window still has the pruned clips in its list.
+                let _ = app.emit("clipboard-change", ());
+            }
+            Ok(_) => {}
+            Err(e) => log::error!("Retention failed: {e}"),
         }
-        Ok(_) => {}
-        Err(e) => log::error!("Retention failed: {e}"),
     }
 
     log::info!(
