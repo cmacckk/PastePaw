@@ -166,6 +166,14 @@ fn read_clipboard_image_fast() -> Result<ClipboardImageRead, String> {
     read_clipboard_image_with_clipboard_rs("clipboard-rs-image")
 }
 
+/// The rich formats one clipboard change carries, beyond plain text and images.
+#[derive(Default)]
+struct CapturedFormats {
+    files: Vec<String>,
+    html: Option<String>,
+    rtf: Option<Vec<u8>>,
+}
+
 /// `#define CF_HDROP 15`. Hard-coded rather than imported because the `windows` crate
 /// exposes the clipboard format constants behind its Ole feature, which is not enabled.
 const CF_HDROP: u32 = 15;
@@ -200,29 +208,67 @@ impl Drop for GlobalLockGuard {
     }
 }
 
-/// Reads the clipboard's file list (`CF_HDROP`), if it has one.
-fn read_clipboard_file_list() -> Result<Vec<String>, String> {
-    if unsafe { IsClipboardFormatAvailable(CF_HDROP) }.is_err() {
-        return Err("no CF_HDROP on the clipboard".to_string());
+/// Reads the clipboard's rich formats, if any.
+///
+/// Everything is read in a single clipboard session. Opening per format would mean
+/// repeated open/close pairs and, worse, a window in which another application could
+/// swap the contents between two reads.
+fn read_rich_clipboard_formats() -> CapturedFormats {
+    let mut captured = CapturedFormats::default();
+
+    let Ok(_session) = ClipboardSession::open() else {
+        log::warn!("CLIPBOARD: could not open the clipboard to read rich formats");
+        return captured;
+    };
+
+    if let Some(bytes) = read_locked_clipboard_format(CF_HDROP) {
+        match crate::clipboard_formats::parse_hdrop(&bytes) {
+            Ok(paths) => captured.files = paths,
+            Err(e) => log::warn!("CLIPBOARD: could not parse CF_HDROP: {e:?}"),
+        }
     }
 
-    let _session = ClipboardSession::open()?;
+    // What gets stored is the fragment, not the raw CF_HTML payload: that payload
+    // embeds byte offsets describing its own header, which would be wrong the moment
+    // anything re-encoded it. It is rebuilt by `build_cf_html` on the way out.
+    if let Some(bytes) = read_locked_clipboard_format(html_clipboard_format()) {
+        match crate::clipboard_formats::parse_cf_html(&bytes) {
+            Some(fragment) => captured.html = Some(fragment),
+            None => log::warn!("CLIPBOARD: could not parse a CF_HTML payload"),
+        }
+    }
 
-    let handle = unsafe { GetClipboardData(CF_HDROP) }
-        .map_err(|e| format!("GetClipboardData(CF_HDROP) failed: {e}"))?;
+    // RTF has no header to normalise, so it is kept exactly as it arrived.
+    if let Some(bytes) = read_locked_clipboard_format(rtf_clipboard_format()) {
+        captured.rtf = Some(bytes);
+    }
+
+    captured
+}
+
+/// Reads a single clipboard format while the clipboard is already open.
+fn read_locked_clipboard_format(format: u32) -> Option<Vec<u8>> {
+    if unsafe { IsClipboardFormatAvailable(format) }.is_err() {
+        return None;
+    }
+
+    let handle = unsafe { GetClipboardData(format) }.ok()?;
     let hglobal = HGLOBAL(handle.0);
 
     let ptr = unsafe { GlobalLock(hglobal) } as *const u8;
     if ptr.is_null() {
-        return Err("GlobalLock returned null".to_string());
+        log::warn!("CLIPBOARD: GlobalLock for format {format} returned null");
+        return None;
     }
     let _lock = GlobalLockGuard(hglobal);
 
-    // SAFETY: the handle is locked for as long as `_lock` is alive, and GlobalSize
-    // reports the allocation the clipboard owns.
-    let bytes = unsafe { std::slice::from_raw_parts(ptr, GlobalSize(hglobal)) };
-    crate::clipboard_formats::parse_hdrop(bytes)
-        .map_err(|e| format!("parse CF_HDROP failed: {e:?}"))
+    let size = unsafe { GlobalSize(hglobal) };
+    if size == 0 {
+        return None;
+    }
+    // SAFETY: the handle stays locked for as long as `_lock` is alive, and GlobalSize
+    // reports the size of the allocation the clipboard owns.
+    Some(unsafe { std::slice::from_raw_parts(ptr, size) }.to_vec())
 }
 
 /// `#define CF_DIB 8`.
@@ -243,6 +289,10 @@ pub struct ClipboardPayload {
     pub files: Option<Vec<String>>,
     /// The PNG bytes stored for an image clip.
     pub image_png: Option<Vec<u8>>,
+    /// An HTML fragment, re-encoded into a `CF_HTML` payload on the way out.
+    pub html: Option<String>,
+    /// Raw RTF bytes, written back unchanged.
+    pub rtf: Option<Vec<u8>>,
 }
 
 impl ClipboardPayload {
@@ -250,6 +300,8 @@ impl ClipboardPayload {
         self.text.is_none()
             && self.files.as_ref().is_none_or(|files| files.is_empty())
             && self.image_png.is_none()
+            && self.html.is_none()
+            && self.rtf.is_none()
     }
 }
 
@@ -274,6 +326,17 @@ pub fn write_clipboard_payload(payload: &ClipboardPayload) -> Result<(), String>
     if let Some(png) = payload.image_png.as_deref() {
         write_image_formats(png)?;
     }
+    // Rich text goes on before plain text: an application that understands both then
+    // has the formatted version available to prefer.
+    if let Some(html) = payload.html.as_deref() {
+        set_clipboard_bytes(
+            html_clipboard_format(),
+            &crate::clipboard_formats::build_cf_html(html, None),
+        )?;
+    }
+    if let Some(rtf) = payload.rtf.as_deref() {
+        set_clipboard_bytes(rtf_clipboard_format(), rtf)?;
+    }
     if let Some(text) = payload.text.as_deref() {
         set_clipboard_bytes(CF_UNICODETEXT, &to_utf16_bytes(text))?;
     }
@@ -281,16 +344,34 @@ pub fn write_clipboard_payload(payload: &ClipboardPayload) -> Result<(), String>
     Ok(())
 }
 
-/// The clipboard format id of the registered `"PNG"` format.
-///
-/// Registration is idempotent and the id is stable for the process lifetime, so it
-/// is resolved once.
+/// Registers a clipboard format by name, or returns the existing id if some other
+/// process already registered it.
+fn register_clipboard_format(name: &str) -> u32 {
+    let mut wide: Vec<u16> = name.encode_utf16().collect();
+    wide.push(0);
+    unsafe { RegisterClipboardFormatW(windows::core::PCWSTR(wide.as_ptr())) }
+}
+
+/// The id of the registered `"PNG"` format. Registration is idempotent and the id
+/// stays valid for the process lifetime, so it is resolved once.
 fn png_clipboard_format() -> u32 {
-    static PNG_FORMAT: OnceLock<u32> = OnceLock::new();
-    *PNG_FORMAT.get_or_init(|| {
-        let name: Vec<u16> = "PNG\0".encode_utf16().collect();
-        unsafe { RegisterClipboardFormatW(windows::core::PCWSTR(name.as_ptr())) }
-    })
+    static FORMAT: OnceLock<u32> = OnceLock::new();
+    *FORMAT.get_or_init(|| register_clipboard_format("PNG"))
+}
+
+/// The id of the registered `"HTML Format"` format, i.e. `CF_HTML`.
+fn html_clipboard_format() -> u32 {
+    static FORMAT: OnceLock<u32> = OnceLock::new();
+    *FORMAT.get_or_init(|| register_clipboard_format("HTML Format"))
+}
+
+/// The id of the registered `"Rich Text Format"` format, i.e. `CF_RTF`.
+///
+/// `CF_RTF` has no predefined constant; unlike `CF_DIB` and friends it only exists
+/// as a registered name.
+fn rtf_clipboard_format() -> u32 {
+    static FORMAT: OnceLock<u32> = OnceLock::new();
+    *FORMAT.get_or_init(|| register_clipboard_format("Rich Text Format"))
 }
 
 /// Puts an image on the clipboard in the formats applications actually look for.
@@ -378,7 +459,6 @@ async fn process_clipboard_change(
     let mut clip_type = "text";
     let mut clip_content = Vec::new();
     let mut full_image_content: Option<Vec<u8>> = None;
-    let mut file_paths: Option<Vec<String>> = None;
     let mut clip_preview = String::new();
     let mut clip_hash = String::new();
     let mut metadata = String::new();
@@ -422,22 +502,25 @@ async fn process_clipboard_change(
         );
     }
 
-    // Files are probed before text on purpose: copying a file in Explorer also puts
+    // Files and rich text are read in one clipboard session, and only when the
+    // clipboard holds no image, so the image path does no extra work.
+    let rich = if found_content {
+        CapturedFormats::default()
+    } else {
+        read_rich_clipboard_formats()
+    };
+
+    // Files are checked before text on purpose: copying a file in Explorer also puts
     // a text rendition on the clipboard, so a text-first check would record the file
     // name as a text clip and lose the file itself.
-    if !found_content {
-        if let Ok(paths) = read_clipboard_file_list() {
-            if !paths.is_empty() {
-                log::debug!("CLIPBOARD: Found {} file(s)", paths.len());
-                let joined = paths.join("\n");
-                clip_content = joined.into_bytes();
-                clip_hash = calculate_hash(&clip_content);
-                clip_preview = crate::clipboard_formats::describe_files(&paths);
-                clip_type = "file";
-                file_paths = Some(paths);
-                found_content = true;
-            }
-        }
+    if !found_content && !rich.files.is_empty() {
+        log::debug!("CLIPBOARD: Found {} file(s)", rich.files.len());
+        let joined = rich.files.join("\n");
+        clip_content = joined.into_bytes();
+        clip_hash = calculate_hash(&clip_content);
+        clip_preview = crate::clipboard_formats::describe_files(&rich.files);
+        clip_type = "file";
+        found_content = true;
     }
 
     if !found_content {
@@ -667,25 +750,38 @@ async fn process_clipboard_change(
     };
     let db_write_ms = db_write_started.elapsed().as_millis();
 
-    // Persist the richer alternates. Done after the clip row exists so the foreign
-    // key holds, and on both the insert and the update path.
-    if let Some(paths) = file_paths.as_ref() {
-        match serde_json::to_vec(paths) {
-            Ok(payload) => {
-                if let Err(e) = sqlx::query(
-                    r#"INSERT OR REPLACE INTO clip_formats (clip_uuid, format, content)
-                       VALUES (?, ?, ?)"#,
-                )
-                .bind(&emitted_id)
-                .bind(crate::clipboard_formats::FORMAT_FILE)
-                .bind(&payload)
-                .execute(pool)
-                .await
-                {
-                    log::error!("Failed to persist file list for clip {}: {}", emitted_id, e);
-                }
-            }
-            Err(e) => log::error!("Failed to encode file list for clip {}: {}", emitted_id, e),
+    // Anything rich that arrived alongside a plain text clip rides with it, so pasting
+    // into a word processor keeps its formatting instead of degrading to plain text.
+    let mut extra_formats: Vec<(&'static str, Vec<u8>)> = Vec::new();
+    if !rich.files.is_empty() {
+        match serde_json::to_vec(&rich.files) {
+            Ok(payload) => extra_formats.push((crate::clipboard_formats::FORMAT_FILE, payload)),
+            Err(e) => log::error!("CLIPBOARD: could not encode the file list: {e}"),
+        }
+    }
+    if clip_type == "text" {
+        if let Some(html) = rich.html {
+            extra_formats.push((crate::clipboard_formats::FORMAT_HTML, html.into_bytes()));
+        }
+        if let Some(rtf) = rich.rtf {
+            extra_formats.push((crate::clipboard_formats::FORMAT_RTF, rtf));
+        }
+    }
+
+    // Persisted once the clip row exists so the foreign key holds, and on both the
+    // insert and the update path.
+    for (format, payload_bytes) in &extra_formats {
+        if let Err(e) = sqlx::query(
+            r#"INSERT OR REPLACE INTO clip_formats (clip_uuid, format, content)
+               VALUES (?, ?, ?)"#,
+        )
+        .bind(&emitted_id)
+        .bind(format)
+        .bind(payload_bytes)
+        .execute(pool)
+        .await
+        {
+            log::error!("Failed to persist format {format} for clip {emitted_id}: {e}");
         }
     }
 
@@ -1217,27 +1313,33 @@ mod tests {
     fn a_payload_counts_as_empty_only_when_it_has_nothing_to_write() {
         assert!(ClipboardPayload::default().is_empty());
         assert!(ClipboardPayload {
-            text: None,
             files: Some(Vec::new()),
-            image_png: None,
+            ..Default::default()
         }
         .is_empty());
         assert!(!ClipboardPayload {
             text: Some(String::new()),
-            files: None,
-            image_png: None,
+            ..Default::default()
         }
         .is_empty());
         assert!(!ClipboardPayload {
-            text: None,
             files: Some(vec![r"C:\a.txt".to_string()]),
-            image_png: None,
+            ..Default::default()
         }
         .is_empty());
         assert!(!ClipboardPayload {
-            text: None,
-            files: None,
             image_png: Some(vec![1, 2, 3]),
+            ..Default::default()
+        }
+        .is_empty());
+        assert!(!ClipboardPayload {
+            html: Some("<b>x</b>".to_string()),
+            ..Default::default()
+        }
+        .is_empty());
+        assert!(!ClipboardPayload {
+            rtf: Some(b"{\\rtf1}".to_vec()),
+            ..Default::default()
         }
         .is_empty());
     }

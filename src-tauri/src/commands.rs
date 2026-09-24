@@ -490,35 +490,24 @@ pub async fn get_clip_detail(
     get_clip(id, db).await
 }
 
-/// Reads the authoritative file list for a `file` clip.
+/// Reads every stored alternate format for a clip as `(format, content)` pairs.
 ///
-/// `clips.content` only holds the newline joined copy that search and the preview
-/// read; the list paste-back needs lives in `clip_formats`.
-async fn load_clip_files(pool: &SqlitePool, clip_uuid: &str) -> Option<Vec<String>> {
-    let raw: Option<Vec<u8>> = match sqlx::query_scalar(
-        r#"SELECT content FROM clip_formats WHERE clip_uuid = ? AND format = ?"#,
+/// `clips.content` only holds the plain text rendition that search and the preview
+/// read; the richer forms paste-back needs live in `clip_formats`.
+async fn load_clip_formats(pool: &SqlitePool, clip_uuid: &str) -> Vec<(String, Vec<u8>)> {
+    match sqlx::query_as::<_, (String, Vec<u8>)>(
+        r#"SELECT format, content FROM clip_formats WHERE clip_uuid = ?"#,
     )
     .bind(clip_uuid)
-    .bind(crate::clipboard_formats::FORMAT_FILE)
-    .fetch_optional(pool)
+    .fetch_all(pool)
     .await
     {
-        Ok(raw) => raw,
+        Ok(rows) => rows,
         Err(e) => {
-            log::error!("Failed to load file list for clip {clip_uuid}: {e}");
-            return None;
+            log::error!("Failed to load stored formats for clip {clip_uuid}: {e}");
+            Vec::new()
         }
-    };
-
-    raw.and_then(
-        |bytes| match serde_json::from_slice::<Vec<String>>(&bytes) {
-            Ok(files) => Some(files),
-            Err(e) => {
-                log::error!("Failed to decode file list for clip {clip_uuid}: {e}");
-                None
-            }
-        },
-    )
+    }
 }
 
 #[tauri::command]
@@ -561,13 +550,36 @@ pub async fn paste_clip(
                     Ok(png) => payload.image_png = Some(png),
                     Err(e) => final_res = Err(e),
                 },
-                "file" => match load_clip_files(pool, &uuid).await {
-                    Some(files) if !files.is_empty() => payload.files = Some(files),
-                    // The stored list is the only way to reproduce a file clip, so
-                    // refuse rather than silently copying nothing.
-                    _ => final_res = Err("This file clip has no stored file list".to_string()),
-                },
-                _ => payload.text = Some(String::from_utf8_lossy(&clip.content).to_string()),
+                kind => {
+                    // Everything that is not an image can carry stored alternates.
+                    for (format, content) in load_clip_formats(pool, &uuid).await {
+                        match format.as_str() {
+                            crate::clipboard_formats::FORMAT_FILE => {
+                                match serde_json::from_slice::<Vec<String>>(&content) {
+                                    Ok(files) if !files.is_empty() => payload.files = Some(files),
+                                    _ => log::error!(
+                                        "Stored file list for clip {uuid} is empty or invalid"
+                                    ),
+                                }
+                            }
+                            crate::clipboard_formats::FORMAT_HTML => {
+                                payload.html = Some(String::from_utf8_lossy(&content).into_owned())
+                            }
+                            crate::clipboard_formats::FORMAT_RTF => payload.rtf = Some(content),
+                            other => log::debug!("Ignoring unknown stored format {other}"),
+                        }
+                    }
+
+                    if kind == "file" {
+                        // The stored list is the only way to reproduce a file clip, so
+                        // refuse rather than silently copying nothing.
+                        if payload.files.is_none() {
+                            final_res = Err("This file clip has no stored file list".to_string());
+                        }
+                    } else {
+                        payload.text = Some(String::from_utf8_lossy(&clip.content).to_string());
+                    }
+                }
             }
 
             if final_res.is_ok() {
