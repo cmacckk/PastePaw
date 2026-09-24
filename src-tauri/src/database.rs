@@ -123,6 +123,10 @@ impl Database {
         )
         .await?;
 
+        // A name the user gave a clip. NULL means "use the source application", which
+        // is what the card showed before this existed.
+        add_column_if_missing(&self.pool, "ALTER TABLE clips ADD COLUMN title TEXT").await?;
+
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS clip_images (

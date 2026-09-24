@@ -8,6 +8,8 @@ export interface ClipboardItem {
   source_app: string | null;
   source_icon: string | null;
   metadata: string | null;
+  /** A name the user gave this clip. Null means fall back to the source application. */
+  title?: string | null;
 }
 
 export interface FolderItem {

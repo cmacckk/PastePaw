@@ -121,6 +121,7 @@ fn clip_to_list_item(clip: &Clip, image_path: Option<&str>) -> ClipboardItem {
         source_app: clip.source_app.clone(),
         source_icon: clip.source_icon.clone(),
         metadata: clip.metadata.clone(),
+        title: clip.title.clone(),
     }
 }
 
@@ -141,6 +142,7 @@ fn clip_to_detail_item(clip: &Clip, full_image_content: Option<&[u8]>) -> Clipbo
         source_app: clip.source_app.clone(),
         source_icon: clip.source_icon.clone(),
         metadata: clip.metadata.clone(),
+        title: clip.title.clone(),
     }
 }
 
@@ -322,6 +324,50 @@ async fn load_full_image_content(pool: &SqlitePool, clip: &mut Clip) -> Result<V
     Err("Image content missing".to_string())
 }
 
+/// Normalises a user supplied clip title.
+///
+/// Blank input clears the name rather than storing an empty string, so "no title" has
+/// exactly one representation in the database. The length is capped because the title
+/// occupies a card header, which is a strip, not a page.
+pub(crate) fn normalise_title(title: Option<String>) -> Option<String> {
+    const MAX_TITLE_CHARS: usize = 120;
+
+    title
+        .map(|value| {
+            value
+                .trim()
+                .chars()
+                .take(MAX_TITLE_CHARS)
+                .collect::<String>()
+        })
+        .filter(|value| !value.is_empty())
+}
+
+/// Stores a clip's title, returning what was stored.
+///
+/// Kept out of the command so the behaviour can be tested against a real database.
+pub async fn store_clip_title(
+    pool: &SqlitePool,
+    clip_uuid: &str,
+    title: Option<String>,
+) -> Result<Option<String>, String> {
+    let cleaned = normalise_title(title);
+
+    let affected = sqlx::query("UPDATE clips SET title = ? WHERE uuid = ?")
+        .bind(&cleaned)
+        .bind(clip_uuid)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .rows_affected();
+
+    if affected == 0 {
+        return Err("Clip not found".to_string());
+    }
+
+    Ok(cleaned)
+}
+
 /// The clip types a filter may select.
 ///
 /// Mirrors what capture actually produces. There is no link or colour type: those
@@ -435,6 +481,10 @@ pub async fn query_clips_matching(
     builder
         .push_bind(pattern.to_string())
         .push(" OR content LIKE ")
+        .push_bind(pattern.to_string())
+        // A clip the user named has to be findable by that name, otherwise naming it
+        // would make it harder to find than leaving it alone.
+        .push(" OR title LIKE ")
         .push_bind(pattern.to_string())
         .push(")");
     push_clip_filters(&mut builder, folder_id, clip_types, source_apps);
@@ -853,6 +903,26 @@ pub async fn delete_clip(
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+/// Names a clip, or clears the name when given blank text.
+///
+/// Returns what was stored, so the window does not have to guess how blank input was
+/// normalised.
+#[tauri::command]
+pub async fn rename_clip(
+    clip_id: String,
+    title: Option<String>,
+    db: tauri::State<'_, Arc<Database>>,
+    window: tauri::WebviewWindow,
+) -> Result<Option<String>, String> {
+    let cleaned = store_clip_title(&db.pool, &clip_id, title).await?;
+
+    // The card header shows this immediately, so the grid has to reload.
+    let _ = window.emit("clipboard-change", ());
+    log::info!("rename_clip: clip {clip_id} title={cleaned:?}");
+
+    Ok(cleaned)
 }
 
 /// Saves a clip into the built-in folder, or takes it back out.
@@ -1789,5 +1859,88 @@ mod tests {
         let many: Vec<String> = (0..200).map(|index| format!("app-{index}.exe")).collect();
 
         assert_eq!(normalise_source_apps(Some(many)).len(), 64);
+    }
+
+    #[test]
+    fn a_title_is_trimmed_capped_and_blank_means_no_title() {
+        assert_eq!(normalise_title(None), None);
+        assert_eq!(normalise_title(Some("   ".to_string())), None);
+        assert_eq!(
+            normalise_title(Some("  Email signature  ".to_string())).as_deref(),
+            Some("Email signature")
+        );
+
+        let long = "x".repeat(500);
+        assert_eq!(
+            normalise_title(Some(long)).map(|title| title.chars().count()),
+            Some(120)
+        );
+    }
+
+    /// Counted in characters rather than bytes, so a title of Chinese text is not cut
+    /// to a third of its length by the cap.
+    #[test]
+    fn a_title_is_capped_by_characters_not_bytes() {
+        let capped = normalise_title(Some("标".repeat(200))).expect("a title");
+
+        assert_eq!(capped.chars().count(), 120);
+    }
+
+    #[tokio::test]
+    async fn storing_a_title_round_trips_and_clears() {
+        let db = test_db().await;
+        insert_clip(&db, "clip", "text", None, "-1 days").await;
+
+        let stored = store_clip_title(&db.pool, "clip", Some("API key".to_string()))
+            .await
+            .expect("store");
+        assert_eq!(stored.as_deref(), Some("API key"));
+
+        let read: Option<String> =
+            sqlx::query_scalar("SELECT title FROM clips WHERE uuid = 'clip'")
+                .fetch_one(&db.pool)
+                .await
+                .expect("read title");
+        assert_eq!(read.as_deref(), Some("API key"));
+
+        // Blank input clears the name instead of storing an empty string, so "no
+        // title" has one representation.
+        let cleared = store_clip_title(&db.pool, "clip", Some("   ".to_string()))
+            .await
+            .expect("clear");
+        assert_eq!(cleared, None);
+
+        let read: Option<String> =
+            sqlx::query_scalar("SELECT title FROM clips WHERE uuid = 'clip'")
+                .fetch_one(&db.pool)
+                .await
+                .expect("read title");
+        assert_eq!(read, None);
+    }
+
+    #[tokio::test]
+    async fn storing_a_title_on_a_missing_clip_fails() {
+        let db = test_db().await;
+
+        assert!(store_clip_title(&db.pool, "nope", Some("x".to_string()))
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn search_finds_a_clip_by_its_title() {
+        let db = test_db().await;
+        insert_clip(&db, "named", "text", None, "-1 days").await;
+        insert_clip(&db, "other", "text", None, "-2 days").await;
+        store_clip_title(&db.pool, "named", Some("email signature".to_string()))
+            .await
+            .expect("store");
+
+        // Neither body contains "email", so only the title can match.
+        let clips = query_clips_matching(&db.pool, "%email%", None, &[], &[], 20, 0)
+            .await
+            .expect("search");
+
+        assert_eq!(uuids(&clips), vec!["named"]);
     }
 }

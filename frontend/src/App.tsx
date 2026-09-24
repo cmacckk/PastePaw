@@ -43,6 +43,10 @@ function App() {
 
   // Add Folder Modal State
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
+  // The clip being renamed, with its current title so the dialog opens pre-filled.
+  const [renameClipTarget, setRenameClipTarget] = useState<{ id: string; title: string } | null>(
+    null
+  );
   const [newFolderName, setNewFolderName] = useState('');
 
   // Confirmation Dialog State
@@ -615,6 +619,18 @@ function App() {
     loadClips(selectedFolderRef.current, false, searchQuery);
   };
 
+  /// Names a clip, or clears the name when given blank text. The backend emits
+  /// `clipboard-change`, so the grid reloads from the database.
+  const handleRenameClip = async (clipId: string, title: string) => {
+    try {
+      await invoke('rename_clip', { clipId, title });
+      toast.success(t('clipList.clipRenamed'));
+    } catch (error) {
+      console.error('Failed to rename clip:', error);
+      toast.error(t('clipList.clipRenameFailed'));
+    }
+  };
+
   useKeyboard({
     onClose: () => appWindow.hide(),
     onSearch: () => setShowSearch(true),
@@ -788,6 +804,16 @@ function App() {
                 contextMenu.type === 'card'
                   ? [
                       {
+                        label: t('contextMenu.rename'),
+                        onClick: () => {
+                          const clip = clips.find((c) => c.id === contextMenu.itemId);
+                          setRenameClipTarget({
+                            id: contextMenu.itemId,
+                            title: clip?.title ?? '',
+                          });
+                        },
+                      },
+                      {
                         label: `${settings?.ai_title_summarize || t('contextMenu.summarize')}`,
                         onClick: () =>
                           handleAiAction(contextMenu.itemId, 'summarize', t('ai.summary')),
@@ -908,6 +934,26 @@ function App() {
                 setNewFolderName('');
               }}
               onSubmit={handleCreateOrRenameFolder}
+            />
+
+            {/*
+              The clip title dialog. Blank input clears the name, which the folder use
+              of this same dialog must not allow, hence `allowEmpty`.
+            */}
+            <FolderModal
+              isOpen={renameClipTarget !== null}
+              mode="rename"
+              initialName={renameClipTarget?.title ?? ''}
+              title={t('clipList.renameClip')}
+              placeholder={t('clipList.clipTitlePlaceholder')}
+              allowEmpty
+              onClose={() => setRenameClipTarget(null)}
+              onSubmit={async (name) => {
+                const target = renameClipTarget;
+                if (!target) return;
+                setRenameClipTarget(null);
+                await handleRenameClip(target.id, name);
+              }}
             />
 
             <AiResultDialog

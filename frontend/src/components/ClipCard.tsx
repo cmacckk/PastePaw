@@ -42,7 +42,9 @@ export const ClipCard = memo(
     const { t } = useTranslation();
     const [copied, setCopied] = useState(false);
     const [hovered, setHovered] = useState(false);
-    const title = clip.source_app || clip.clip_type.toUpperCase();
+    // A name the user gave the clip wins over where it came from, which is the only
+    // thing the header could show before.
+    const title = clip.title || clip.source_app || clip.clip_type.toUpperCase();
 
     const mouseX = useMotionValue(0);
     const mouseY = useMotionValue(0);

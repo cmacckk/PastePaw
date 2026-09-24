@@ -19,7 +19,11 @@
     "imageSize": "Image ({{size}}KB)",
     "textLength": "{{count}} characters",
     "fileCount": "{{count}} files",
-    "moreFiles": "+{{count}} more"
+    "moreFiles": "+{{count}} more",
+    "renameClip": "Name this clip",
+    "clipTitlePlaceholder": "Leave blank to show the source application",
+    "clipRenamed": "Clip renamed",
+    "clipRenameFailed": "Failed to rename clip"
   },
   "clipTypes": {
     "text": "Text",

@@ -90,6 +90,8 @@ pub struct Clip {
     pub source_app: Option<String>,
     pub source_icon: Option<String>,
     pub metadata: Option<String>,
+    /// A name the user gave this clip. `None` means fall back to the source application.
+    pub title: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_accessed: chrono::DateTime<chrono::Utc>,
 }
@@ -132,6 +134,7 @@ pub struct ClipboardItem {
     pub source_app: Option<String>,
     pub source_icon: Option<String>,
     pub metadata: Option<String>,
+    pub title: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

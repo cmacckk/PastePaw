@@ -19,7 +19,11 @@
     "imageSize": "图片 ({{size}}KB)",
     "textLength": "{{count}} 个字符",
     "fileCount": "{{count}} 个文件",
-    "moreFiles": "还有 {{count}} 个"
+    "moreFiles": "还有 {{count}} 个",
+    "renameClip": "为这条剪贴命名",
+    "clipTitlePlaceholder": "留空则显示来源应用名",
+    "clipRenamed": "已重命名",
+    "clipRenameFailed": "重命名失败"
   },
   "clipTypes": {
     "text": "文本",

@@ -65,6 +65,10 @@ pub struct BundleClip {
     pub rtf_base64: Option<String>,
     /// Absolute path on the machine that produced the bundle.
     pub image_path: Option<String>,
+    /// A name the user gave this clip. Optional, so a bundle written before this
+    /// existed still reads: the field is absent and deserialises to `None`.
+    #[serde(default)]
+    pub title: Option<String>,
 }
 
 /// What an import did.
@@ -98,6 +102,7 @@ struct ExportClipRow {
     content_hash: String,
     source_app: Option<String>,
     metadata: Option<String>,
+    title: Option<String>,
     created_at: chrono::DateTime<chrono::Utc>,
     folder_name: Option<String>,
     image_path: Option<String>,
@@ -117,7 +122,7 @@ pub async fn export_bundle(pool: &SqlitePool) -> Result<Bundle, String> {
 
     let rows: Vec<ExportClipRow> = sqlx::query_as(
         r#"SELECT c.uuid, c.clip_type, c.content, c.text_preview, c.content_hash,
-                  c.source_app, c.metadata, c.created_at,
+                  c.source_app, c.metadata, c.title, c.created_at,
                   f.name AS folder_name, ci.file_path AS image_path
            FROM clips c
            LEFT JOIN folders f ON c.folder_id = f.id
@@ -164,6 +169,7 @@ pub async fn export_bundle(pool: &SqlitePool) -> Result<Bundle, String> {
                     .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()),
                 rtf_base64: own.remove(FORMAT_RTF).map(|bytes| BASE64.encode(bytes)),
                 image_path: row.image_path.filter(|path| !path.is_empty()),
+                title: row.title,
             }
         })
         .collect();
@@ -278,8 +284,8 @@ pub async fn import_bundle(pool: &SqlitePool, bundle: &Bundle) -> Result<ImportR
         sqlx::query(
             r#"INSERT INTO clips (uuid, clip_type, content, text_preview, content_hash,
                                   folder_id, is_deleted, is_thumbnail, source_app, metadata,
-                                  created_at, last_accessed)
-               VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)"#,
+                                  title, created_at, last_accessed)
+               VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)"#,
         )
         .bind(&uuid)
         .bind(&clip.clip_type)
@@ -289,6 +295,7 @@ pub async fn import_bundle(pool: &SqlitePool, bundle: &Bundle) -> Result<ImportR
         .bind(folder_id)
         .bind(&clip.source_app)
         .bind(&metadata)
+        .bind(crate::commands::normalise_title(clip.title.clone()))
         .bind(created_at)
         .bind(created_at)
         .execute(&mut *transaction)
@@ -755,5 +762,63 @@ mod tests {
             import_bundle_json(&db.pool, &json).await.expect("import"),
             ImportReport::default()
         );
+    }
+
+    #[tokio::test]
+    async fn a_clip_title_survives_the_round_trip() {
+        let source = test_db().await;
+        let folder = make_folder(&source, "work").await;
+        insert_clip(&source, "named", "text", "payload", Some(folder)).await;
+        sqlx::query("UPDATE clips SET title = ? WHERE uuid = 'named'")
+            .bind("Email signature")
+            .execute(&source.pool)
+            .await
+            .expect("set title");
+
+        let json = serde_json::to_string(&export_bundle(&source.pool).await.expect("export"))
+            .expect("serialize");
+
+        let target = test_db().await;
+        import_bundle_json(&target.pool, &json)
+            .await
+            .expect("import");
+
+        let title: Option<String> =
+            sqlx::query_scalar("SELECT title FROM clips WHERE folder_id IS NOT NULL LIMIT 1")
+                .fetch_one(&target.pool)
+                .await
+                .expect("read title");
+        assert_eq!(title.as_deref(), Some("Email signature"));
+    }
+
+    /// A bundle written before titles existed has no `title` key at all. It has to keep
+    /// importing rather than being rejected, which is what `serde(default)` buys.
+    #[tokio::test]
+    async fn a_bundle_without_a_title_field_still_imports() {
+        let db = test_db().await;
+        let json = serde_json::json!({
+            "version": BUNDLE_VERSION,
+            "app": "PastePaw",
+            "exported_at": "2026-01-01T00:00:00Z",
+            "folders": [{ "name": "work", "icon": null, "color": null, "is_system": false }],
+            "clips": [{
+                "clip_type": "text",
+                "content": "payload",
+                "text_preview": "payload",
+                "content_hash": "hash-from-an-older-bundle",
+                "folder": "work",
+                "source_app": null,
+                "metadata": null,
+                "created_at": "2026-01-01T00:00:00Z",
+                "html": null,
+                "rtf_base64": null,
+                "image_path": null
+            }]
+        })
+        .to_string();
+
+        let report = import_bundle_json(&db.pool, &json).await.expect("import");
+
+        assert_eq!(report.clips_imported, 1);
     }
 }

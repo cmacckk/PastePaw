@@ -7,9 +7,28 @@ interface FolderModalProps {
   initialName: string;
   onClose: () => void;
   onSubmit: (name: string) => void;
+  /**
+   * Overrides for the folder wording, so the same dialog can name other things.
+   */
+  title?: string;
+  placeholder?: string;
+  /**
+   * Whether submitting an empty field is allowed. Folders need a name, so it is off by
+   * default; a clip title can be cleared, which is what empty means there.
+   */
+  allowEmpty?: boolean;
 }
 
-export function FolderModal({ isOpen, mode, initialName, onClose, onSubmit }: FolderModalProps) {
+export function FolderModal({
+  isOpen,
+  mode,
+  initialName,
+  onClose,
+  onSubmit,
+  title,
+  placeholder,
+  allowEmpty = false,
+}: FolderModalProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,24 +51,25 @@ export function FolderModal({ isOpen, mode, initialName, onClose, onSubmit }: Fo
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
-    const val = inputRef.current?.value.trim();
-    if (val) {
-      setIsSubmitting(true);
-      await onSubmit(val);
-      setIsSubmitting(false);
-    }
+    const val = inputRef.current?.value.trim() ?? '';
+    if (!val && !allowEmpty) return;
+
+    setIsSubmitting(true);
+    await onSubmit(val);
+    setIsSubmitting(false);
   };
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="w-80 rounded-2xl border border-border bg-card p-6 shadow-2xl">
         <h3 className="mb-4 text-lg font-semibold text-foreground">
-          {mode === 'create' ? t('folders.createFolder') : t('folders.renameFolder')}
+          {title ??
+            (mode === 'create' ? t('folders.createFolder') : t('folders.renameFolder'))}
         </h3>
         <input
           ref={inputRef}
           type="text"
-          placeholder={t('folders.folderNamePlaceholder')}
+          placeholder={placeholder ?? t('folders.folderNamePlaceholder')}
           defaultValue={initialName}
           className="mb-4 w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           onKeyDown={(e) => {
