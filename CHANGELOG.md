@@ -2,6 +2,52 @@
 
 All notable changes to PastePaw will be documented in this file.
 
+## v1.6.0
+
+### Added
+- **Files on the clipboard**: Copying files or folders records their paths, and pasting puts them back so File Explorer accepts a normal paste.
+- **Rich text**: Formatting, links and tables are captured as HTML and RTF, so pasting into a word processor keeps them instead of flattening to plain text.
+- **History retention**: Choose how many days and how many items to keep. Items saved to a folder are exempt from both limits. These settings existed but were never applied.
+- **Pinning**: `P` saves the selected clip into a built-in Pinned folder, and folder items are exempt from cleanup.
+- **Export and import**: Export your folders to a single readable JSON file and import it on another machine. Folders merge by name, and importing the same file twice changes nothing.
+- **Type and source filters**: Narrow the list by content type (text, image, file) or by the application a clip came from.
+- **Jump to the owning folder**: A card shows which folder it is saved in, and clicking that jumps there.
+- **Custom titles**: Name a clip from the right-click menu, and find it later by that name.
+- **`Ctrl+1` to `Ctrl+9`**: Paste the nth clip from the top of the list.
+- **Typography**: Choose the interface and clip fonts, their weights, and the overall text size.
+
+### Changed
+- **Smoother window animation**: The slide now eases out, and its frames are paced against a fixed clock. It previously moved linearly and slept for an interval Windows rounded up unevenly, which read as stutter.
+- Retention is only evaluated when a new clip arrives, not when an existing one is pasted back.
+
+### Fixed
+- **Image transparency is preserved**: Images were written through the WebView, which could only produce an opaque bitmap, so a transparent PNG pasted with a black background. Images are now written as CF_DIBV5, CF_DIB and PNG.
+- **History retention and the item limit did nothing**, so history grew without bound on disk and in the database.
+- **The `P` shortcut did nothing**, although the README and the in-app documentation both listed it.
+- **File clips** now list their file names instead of printing every full path, and report a file count rather than a character count.
+
+### 新增
+- **文件**：复制文件或文件夹会记录其路径，粘贴时重新写回剪贴板，资源管理器可以直接“粘贴”。
+- **富文本**：格式、链接与表格以 HTML 与 RTF 保存，粘进文字处理软件时保留格式，不再被压成纯文本。
+- **历史保留**：可设定保留多少天、多少条；保存到文件夹中的内容不受这两个限制。该设置此前存在但从未生效。
+- **收藏**：按 `P` 将选中的剪贴存入内置“收藏”文件夹，文件夹内的内容豁免清理。
+- **导出与导入**：将文件夹导出为一个可读的 JSON 文件，在另一台设备导入。同名文件夹会合并，同一份文件导入两次不会产生任何变化。
+- **类型与来源筛选**：按内容类型（文本 / 图片 / 文件）或来源应用缩小列表。
+- **跳转到所在列表**：卡片会显示它保存在哪个文件夹，点击即可跳转过去。
+- **自定义标题**：在右键菜单给剪贴起名，之后可按该名字搜到它。
+- **`Ctrl+1` 至 `Ctrl+9`**：直接粘贴列表前几条。
+- **字体**：可分别设置界面与内容的字体、粗细，以及整体字号。
+
+### 修改
+- **窗口动画更顺滑**：滑动改为缓出曲线，且每帧按固定时钟对齐。此前为线性位移，加上一个会被 Windows 不均匀向上取整的 sleep，表现为抖动。
+- 保留策略只在**有新剪贴进入**时评估，粘贴回已有条目时不再评估。
+
+### 修复
+- **图片透明通道得以保留**：此前图片由前端 WebView 写入，只能产出不透明位图，导致透明 PNG 粘出后是黑底。现改为写入 CF_DIBV5、CF_DIB 与 PNG。
+- **历史保留与条数上限完全没有生效**，导致磁盘与数据库中的历史无限增长。
+- **`P` 快捷键完全无效**，尽管 README 与应用内文档都列出了它。
+- **文件剪贴**现在列出文件名，不再打印每条完整路径；页脚显示文件数量而非字符数。
+
 ## v1.5.0
 
 ### Added

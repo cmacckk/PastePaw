@@ -27,9 +27,19 @@ Also available for **macOS** on the [App Store](https://apps.apple.com/us/app/pa
 - 🎨 **Beautiful UI** - Modern dark/light theme with native Windows Mica & Mica-Alt window effects
 - ⚡ **Fast & Lightweight** - Built with Rust for performance
 - 📋 **Clipboard History** - Automatically saves everything you copy
-- 🖥️ **Support multiple Displays** - Show on the active display
+- 📄 **Files** - Copy files and folders, then paste them straight back
+- 🖼️ **Images** - Pasting an image keeps its transparency, which it did not before
+- ✍️ **Rich Text** - Bold, italics and links survive the round trip
+- 📁 **Folders & Pinboards** - Organize clips into folders, and jump to the folder a result lives in
+- 📌 **Pin with P** - One key saves the selected clip to your Pinned folder
+- 🏷️ **Custom Titles** - Give a clip a name of your own, and find it by that name
+- 🗂️ **Type & Source Filters** - Narrow the list by content type or by the application it came from
 - 🔍 **Search** - Quickly find previously copied content
-- 📁 **Folders** - Organize clips into custom folders
+- 🔢 **Paste the Nth Clip** - `Ctrl+1` to `Ctrl+9` pastes from the top of the list
+- 🕘 **History Retention** - Choose how many days and how many items to keep
+- 📤 **Export & Import** - Move your folders between machines as a readable JSON file
+- 🔤 **Typography** - Pick the interface and clip fonts, their weights, and the text size
+- 🖥️ **Support multiple Displays** - Show on the active display
 - 🚫 **Application Exceptions** - Ignore content from specific sensitive apps (e.g., Password Managers)
 - ⌨️ **Customizable Hotkey** - Set your preferred shortcut to open the history
 - 🔄 **Infinite Scroll** - Seamlessly browse through unlimited history
