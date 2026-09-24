@@ -19,6 +19,16 @@ export interface FolderItem {
   item_count: number;
 }
 
+/** What an import did. Mirrors `ImportReport` in src-tauri/src/export.rs. */
+export interface ImportReport {
+  folders_created: number;
+  folders_reused: number;
+  clips_imported: number;
+  clips_skipped: number;
+  images_restored: number;
+  images_missing: number;
+}
+
 export interface Settings {
   max_items: number;
   auto_delete_days: number;

@@ -1,4 +1,4 @@
-import { Settings, FolderItem } from '../types';
+import { Settings, FolderItem, ImportReport } from '../types';
 import {
   X,
   Trash2,
@@ -301,6 +301,39 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
     } catch (error) {
       console.error('Failed to clean up history:', error);
       toast.error(`${t('settings.pruneFailed')}: ${error}`);
+    }
+  };
+
+  const handleExportFolders = async () => {
+    try {
+      const path = await invoke<string>('export_folders');
+      toast.success(t('settings.exportDone', { path }));
+    } catch (error) {
+      // Cancelling the file dialog is not a failure worth reporting.
+      if (String(error).includes('No file selected')) return;
+      console.error('Export failed:', error);
+      toast.error(`${t('settings.exportFailed')}: ${error}`);
+    }
+  };
+
+  const handleImportFolders = async () => {
+    try {
+      const report = await invoke<ImportReport>('import_folders');
+      loadFolders();
+      const newSize = await invoke<number>('get_clipboard_history_size');
+      setHistorySize(newSize);
+      toast.success(
+        t('settings.importReport', {
+          imported: report.clips_imported,
+          skipped: report.clips_skipped,
+          created: report.folders_created,
+          missing: report.images_missing,
+        })
+      );
+    } catch (error) {
+      if (String(error).includes('No file selected')) return;
+      console.error('Import failed:', error);
+      toast.error(`${t('settings.importFailed')}: ${error}`);
     }
   };
 
@@ -739,6 +772,31 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                     >
                       {t('settings.pruneNow')}
                     </button>
+                  </section>
+
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      {t('settings.dataPortability')}
+                    </h3>
+
+                    <p className="text-xs text-muted-foreground">
+                      {t('settings.dataPortabilityHint')}
+                    </p>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleExportFolders}
+                        className="rounded-lg border border-border bg-accent/20 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/40"
+                      >
+                        {t('settings.exportData')}
+                      </button>
+                      <button
+                        onClick={handleImportFolders}
+                        className="rounded-lg border border-border bg-accent/20 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/40"
+                      >
+                        {t('settings.importData')}
+                      </button>
+                    </div>
                   </section>
 
                   <section className="space-y-4">
