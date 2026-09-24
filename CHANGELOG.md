@@ -26,6 +26,9 @@ All notable changes to PastePaw will be documented in this file.
 - **The `P` shortcut did nothing**, although the README and the in-app documentation both listed it.
 - **File clips** now list their file names instead of printing every full path, and report a file count rather than a character count.
 
+### Removed
+- **The AI feature**: the Summarize, Translate, Explain Code and Fix Grammar actions are gone, along with the AI provider settings, the custom action names and prompts, and the API key field. Removed on request. No AI code remains and no AI configuration is read.
+
 ### 新增
 - **文件**：复制文件或文件夹会记录其路径，粘贴时重新写回剪贴板，资源管理器可以直接“粘贴”。
 - **富文本**：格式、链接与表格以 HTML 与 RTF 保存，粘进文字处理软件时保留格式，不再被压成纯文本。
@@ -47,6 +50,9 @@ All notable changes to PastePaw will be documented in this file.
 - **历史保留与条数上限完全没有生效**，导致磁盘与数据库中的历史无限增长。
 - **`P` 快捷键完全无效**，尽管 README 与应用内文档都列出了它。
 - **文件剪贴**现在列出文件名，不再打印每条完整路径；页脚显示文件数量而非字符数。
+
+### 移除
+- **AI 功能**：总结 / 翻译 / 解释代码 / 修复语法四个动作已移除，连同 AI 提供商配置、自定义动作名称与提示词、以及 API Key 输入框一并删除。按需求移除，代码中已无任何 AI 相关逻辑，也不再读取相关配置。
 
 ## v1.5.0
 
