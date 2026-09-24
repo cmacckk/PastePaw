@@ -288,6 +288,21 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack.windows(needle.len()).position(|w| w == needle)
 }
 
+/// A short, human readable label for a file list, used as the clip preview.
+pub fn describe_files(paths: &[String]) -> String {
+    match paths {
+        [] => String::new(),
+        [only] => file_name_of(only).to_string(),
+        [first, rest @ ..] => format!("{} +{}", file_name_of(first), rest.len()),
+    }
+}
+
+/// The final component of a path, tolerating both separators and a trailing one.
+pub fn file_name_of(path: &str) -> &str {
+    let trimmed = path.trim_end_matches(['\\', '/']);
+    trimmed.rsplit(['\\', '/']).next().unwrap_or(trimmed)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -532,6 +547,30 @@ mod tests {
         assert_eq!(find_subslice(b"abcdef", b"cd"), Some(2));
         assert_eq!(find_subslice(b"abcdef", b"zz"), None);
         assert_eq!(find_subslice(b"abc", b""), None);
+    }
+
+    #[test]
+    fn file_name_of_handles_separators_and_trailing_slashes() {
+        assert_eq!(file_name_of(r"C:\Users\a\report.txt"), "report.txt");
+        assert_eq!(file_name_of("C:/Users/a/report.txt"), "report.txt");
+        assert_eq!(file_name_of(r"C:\Users\a\"), "a");
+        assert_eq!(file_name_of("report.txt"), "report.txt");
+        assert_eq!(file_name_of(""), "");
+    }
+
+    #[test]
+    fn describe_files_is_short_for_long_lists() {
+        let one = vec![r"C:\a\report.txt".to_string()];
+        assert_eq!(describe_files(&one), "report.txt");
+
+        let three = vec![
+            r"C:\a\report.txt".to_string(),
+            r"C:\a\b.png".to_string(),
+            r"C:\a\c.doc".to_string(),
+        ];
+        assert_eq!(describe_files(&three), "report.txt +2");
+
+        assert_eq!(describe_files(&[]), "");
     }
 
     #[test]

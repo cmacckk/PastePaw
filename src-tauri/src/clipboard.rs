@@ -14,6 +14,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::sync::Arc;
 use tauri_plugin_clipboard_x::{read_text, start_listening};
 use uuid::Uuid;
+use windows::Win32::Foundation::HGLOBAL;
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::MAX_PATH;
 #[cfg(target_os = "windows")]
@@ -27,7 +28,11 @@ use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
 };
 #[cfg(target_os = "windows")]
-use windows::Win32::System::DataExchange::GetClipboardOwner;
+use windows::Win32::System::DataExchange::{
+    CloseClipboard, GetClipboardData, GetClipboardOwner, IsClipboardFormatAvailable, OpenClipboard,
+};
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
 #[cfg(target_os = "windows")]
 use windows::Win32::System::ProcessStatus::{GetModuleBaseNameW, GetModuleFileNameExW};
 #[cfg(target_os = "windows")]
@@ -158,6 +163,65 @@ fn read_clipboard_image_fast() -> Result<ClipboardImageRead, String> {
     read_clipboard_image_with_clipboard_rs("clipboard-rs-image")
 }
 
+/// `#define CF_HDROP 15`. Hard-coded rather than imported because the `windows` crate
+/// exposes the clipboard format constants behind its Ole feature, which is not enabled.
+const CF_HDROP: u32 = 15;
+
+/// Closes the clipboard on drop, so no early return can leave it locked and wedge
+/// every other application that touches the clipboard.
+struct ClipboardSession;
+
+impl ClipboardSession {
+    fn open() -> Result<Self, String> {
+        unsafe { OpenClipboard(None) }.map_err(|e| format!("OpenClipboard failed: {e}"))?;
+        Ok(Self)
+    }
+}
+
+impl Drop for ClipboardSession {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = CloseClipboard();
+        }
+    }
+}
+
+/// Unlocks a `GlobalLock`ed handle on drop.
+struct GlobalLockGuard(HGLOBAL);
+
+impl Drop for GlobalLockGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = GlobalUnlock(self.0);
+        }
+    }
+}
+
+/// Reads the clipboard's file list (`CF_HDROP`), if it has one.
+fn read_clipboard_file_list() -> Result<Vec<String>, String> {
+    if unsafe { IsClipboardFormatAvailable(CF_HDROP) }.is_err() {
+        return Err("no CF_HDROP on the clipboard".to_string());
+    }
+
+    let _session = ClipboardSession::open()?;
+
+    let handle = unsafe { GetClipboardData(CF_HDROP) }
+        .map_err(|e| format!("GetClipboardData(CF_HDROP) failed: {e}"))?;
+    let hglobal = HGLOBAL(handle.0);
+
+    let ptr = unsafe { GlobalLock(hglobal) } as *const u8;
+    if ptr.is_null() {
+        return Err("GlobalLock returned null".to_string());
+    }
+    let _lock = GlobalLockGuard(hglobal);
+
+    // SAFETY: the handle is locked for as long as `_lock` is alive, and GlobalSize
+    // reports the allocation the clipboard owns.
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, GlobalSize(hglobal)) };
+    crate::clipboard_formats::parse_hdrop(bytes)
+        .map_err(|e| format!("parse CF_HDROP failed: {e:?}"))
+}
+
 async fn process_clipboard_change(
     app: AppHandle,
     db: Arc<Database>,
@@ -173,6 +237,7 @@ async fn process_clipboard_change(
     let mut clip_type = "text";
     let mut clip_content = Vec::new();
     let mut full_image_content: Option<Vec<u8>> = None;
+    let mut file_paths: Option<Vec<String>> = None;
     let mut clip_preview = String::new();
     let mut clip_hash = String::new();
     let mut metadata = String::new();
@@ -214,6 +279,24 @@ async fn process_clipboard_change(
             read_image_result.source_type,
             size_bytes
         );
+    }
+
+    // Files are probed before text on purpose: copying a file in Explorer also puts
+    // a text rendition on the clipboard, so a text-first check would record the file
+    // name as a text clip and lose the file itself.
+    if !found_content {
+        if let Ok(paths) = read_clipboard_file_list() {
+            if !paths.is_empty() {
+                log::debug!("CLIPBOARD: Found {} file(s)", paths.len());
+                let joined = paths.join("\n");
+                clip_content = joined.into_bytes();
+                clip_hash = calculate_hash(&clip_content);
+                clip_preview = crate::clipboard_formats::describe_files(&paths);
+                clip_type = "file";
+                file_paths = Some(paths);
+                found_content = true;
+            }
+        }
     }
 
     if !found_content {
@@ -442,6 +525,28 @@ async fn process_clipboard_change(
         clip_uuid
     };
     let db_write_ms = db_write_started.elapsed().as_millis();
+
+    // Persist the richer alternates. Done after the clip row exists so the foreign
+    // key holds, and on both the insert and the update path.
+    if let Some(paths) = file_paths.as_ref() {
+        match serde_json::to_vec(paths) {
+            Ok(payload) => {
+                if let Err(e) = sqlx::query(
+                    r#"INSERT OR REPLACE INTO clip_formats (clip_uuid, format, content)
+                       VALUES (?, ?, ?)"#,
+                )
+                .bind(&emitted_id)
+                .bind(crate::clipboard_formats::FORMAT_FILE)
+                .bind(&payload)
+                .execute(pool)
+                .await
+                {
+                    log::error!("Failed to persist file list for clip {}: {}", emitted_id, e);
+                }
+            }
+            Err(e) => log::error!("Failed to encode file list for clip {}: {}", emitted_id, e),
+        }
+    }
 
     let emit_started = std::time::Instant::now();
     let _ = app.emit(
