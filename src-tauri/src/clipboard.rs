@@ -834,7 +834,7 @@ async fn process_clipboard_change(
         started.elapsed().as_millis()
     );
 }
-fn calculate_hash(content: &[u8]) -> String {
+pub(crate) fn calculate_hash(content: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content);
     let result = hasher.finalize();

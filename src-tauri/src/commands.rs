@@ -834,6 +834,92 @@ pub async fn rename_clip(
     Ok(cleaned)
 }
 
+/// Replaces a text clip's stored content.
+///
+/// The content hash is recomputed, because it is what deduplication and the
+/// ignore-own-paste check compare against. Leaving the old hash behind would make a
+/// later copy of the edited text look like a different clip.
+///
+/// The stored rich alternates are dropped: they describe the previous text, so keeping
+/// them would paste the old formatting under the new content.
+///
+/// Kept out of the command so it can be tested against a real database.
+pub async fn store_clip_content(
+    pool: &SqlitePool,
+    clip_uuid: &str,
+    content: &str,
+) -> Result<(), String> {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return Err("A clip cannot be emptied".to_string());
+    }
+
+    // Only text is editable. A file clip's content is its path list and an image's is
+    // empty, so editing either as free text would contradict the rows that reproduce it.
+    let clip_type: Option<String> =
+        sqlx::query_scalar("SELECT clip_type FROM clips WHERE uuid = ?")
+            .bind(clip_uuid)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+    match clip_type.as_deref() {
+        None => return Err("Clip not found".to_string()),
+        Some("text") => {}
+        Some(other) => return Err(format!("A {other} clip cannot be edited as text")),
+    }
+
+    let bytes = trimmed.as_bytes();
+    let hash = crate::clipboard::calculate_hash(bytes);
+    let preview: String = trimmed.chars().take(200).collect();
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+    let affected = sqlx::query(
+        r#"UPDATE clips SET content = ?, text_preview = ?, content_hash = ? WHERE uuid = ?"#,
+    )
+    .bind(bytes)
+    .bind(&preview)
+    .bind(&hash)
+    .bind(clip_uuid)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?
+    .rows_affected();
+
+    if affected == 0 {
+        return Err("Clip not found".to_string());
+    }
+
+    sqlx::query("DELETE FROM clip_formats WHERE clip_uuid = ?")
+        .bind(clip_uuid)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Replaces the content of a text clip.
+#[tauri::command]
+pub async fn update_clip_content(
+    clip_id: String,
+    content: String,
+    db: tauri::State<'_, Arc<Database>>,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
+    let pool = &db.pool;
+
+    store_clip_content(pool, &clip_id, &content).await?;
+
+    // The card shows the new text, so the grid reloads.
+    let _ = window.emit("clipboard-change", ());
+    log::info!("update_clip_content: edited clip {clip_id}");
+
+    Ok(())
+}
+
 /// Saves a clip into the built-in folder, or takes it back out.
 ///
 /// Returns the state after the toggle so the window does not have to guess at it.
@@ -1851,5 +1937,79 @@ mod tests {
             .expect("search");
 
         assert_eq!(uuids(&clips), vec!["named"]);
+    }
+
+    #[tokio::test]
+    async fn editing_a_clip_updates_its_content_preview_and_hash() {
+        let db = test_db().await;
+        insert_clip(&db, "clip", "text", None, "-1 days").await;
+
+        store_clip_content(&db.pool, "clip", "  edited text  ")
+            .await
+            .expect("edit");
+
+        let (content, preview, hash): (Vec<u8>, String, String) = sqlx::query_as(
+            "SELECT content, text_preview, content_hash FROM clips WHERE uuid = 'clip'",
+        )
+        .fetch_one(&db.pool)
+        .await
+        .expect("read clip");
+
+        assert_eq!(String::from_utf8_lossy(&content), "edited text");
+        assert_eq!(preview, "edited text");
+        // It has to match a fresh hash of the new text. An untouched hash would make a
+        // later copy of that same text look like a different clip.
+        assert_eq!(hash, crate::clipboard::calculate_hash(b"edited text"));
+    }
+
+    #[tokio::test]
+    async fn editing_a_clip_drops_the_rich_alternates() {
+        let db = test_db().await;
+        insert_clip(&db, "clip", "text", None, "-1 days").await;
+        sqlx::query("INSERT INTO clip_formats (clip_uuid, format, content) VALUES (?, ?, ?)")
+            .bind("clip")
+            .bind("html")
+            .bind(b"<b>old</b>".to_vec())
+            .execute(&db.pool)
+            .await
+            .expect("insert format");
+
+        store_clip_content(&db.pool, "clip", "new text")
+            .await
+            .expect("edit");
+
+        let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM clip_formats")
+            .fetch_one(&db.pool)
+            .await
+            .expect("count formats");
+
+        assert_eq!(remaining, 0, "the old formatting must not survive the edit");
+    }
+
+    #[tokio::test]
+    async fn a_clip_cannot_be_edited_to_empty() {
+        let db = test_db().await;
+        insert_clip(&db, "clip", "text", None, "-1 days").await;
+
+        assert!(store_clip_content(&db.pool, "clip", "   ").await.is_err());
+    }
+
+    /// Content is only free text for a text clip; a file clip's content is its path
+    /// list, and an image's is empty.
+    #[tokio::test]
+    async fn a_non_text_clip_cannot_be_edited_as_text() {
+        let db = test_db().await;
+        insert_clip(&db, "picture", "image", None, "-1 days").await;
+
+        assert!(store_clip_content(&db.pool, "picture", "hello")
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn editing_a_missing_clip_fails() {
+        let db = test_db().await;
+
+        assert!(store_clip_content(&db.pool, "nope", "hello").await.is_err());
     }
 }

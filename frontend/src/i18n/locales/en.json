@@ -21,6 +21,9 @@
     "fileCount": "{{count}} files",
     "moreFiles": "+{{count}} more",
     "renameClip": "Name this clip",
+    "editClip": "Edit content",
+    "clipEdited": "Clip updated",
+    "clipEditFailed": "Failed to update clip",
     "clipTitlePlaceholder": "Leave blank to show the source application",
     "clipRenamed": "Clip renamed",
     "clipRenameFailed": "Failed to rename clip"

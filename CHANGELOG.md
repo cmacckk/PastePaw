@@ -15,6 +15,7 @@ All notable changes to PastePaw will be documented in this file.
 - **Custom titles**: Name a clip from the right-click menu, and find it later by that name.
 - **`Ctrl+1` to `Ctrl+9`**: Paste the nth clip from the top of the list.
 - **Typography**: Choose the interface and clip fonts, their weights, and the overall text size.
+- **Edit a clip**: Right-click a text clip to change its text. The edit is hashed like a fresh copy, so a later copy of the same text still deduplicates against it, and any stored rich text is dropped because it described the previous content.
 
 ### Changed
 - **Smoother window animation**: The slide now eases out, and its frames are paced against a fixed clock. It previously moved linearly and slept for an interval Windows rounded up unevenly, which read as stutter.
@@ -40,6 +41,7 @@ All notable changes to PastePaw will be documented in this file.
 - **自定义标题**：在右键菜单给剪贴起名，之后可按该名字搜到它。
 - **`Ctrl+1` 至 `Ctrl+9`**：直接粘贴列表前几条。
 - **字体**：可分别设置界面与内容的字体、粗细，以及整体字号。
+- **编辑剪贴**：右键文本剪贴即可修改内容。修改后会像新复制一样重新计算哈希（以后复制同样文本仍会正确去重），并丢弃旧的富文本副本（它描述的是旧内容）。
 
 ### 修改
 - **窗口动画更顺滑**：滑动改为缓出曲线，且每帧按固定时钟对齐。此前为线性位移，加上一个会被 Windows 不均匀向上取整的 sleep，表现为抖动。

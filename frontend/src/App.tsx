@@ -9,6 +9,7 @@ import { ControlBar } from './components/ControlBar';
 import { DragPreview } from './components/DragPreview';
 import { ContextMenu } from './components/ContextMenu';
 import { FolderModal } from './components/FolderModal';
+import { EditClipModal } from './components/EditClipModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { useKeyboard } from './hooks/useKeyboard';
 import { useTheme } from './hooks/useTheme';
@@ -45,6 +46,10 @@ function App() {
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
   // The clip being renamed, with its current title so the dialog opens pre-filled.
   const [renameClipTarget, setRenameClipTarget] = useState<{ id: string; title: string } | null>(
+    null
+  );
+  // The clip being edited, with its current text so the dialog opens filled in.
+  const [editClipTarget, setEditClipTarget] = useState<{ id: string; content: string } | null>(
     null
   );
   const [newFolderName, setNewFolderName] = useState('');
@@ -634,6 +639,18 @@ function App() {
     }
   };
 
+  /// Replaces a clip's text. The backend recomputes its hash and drops the stored rich
+  /// alternates, then emits `clipboard-change`, so the grid reloads.
+  const handleUpdateClipContent = async (clipId: string, content: string) => {
+    try {
+      await invoke('update_clip_content', { clipId, content });
+      toast.success(t('clipList.clipEdited'));
+    } catch (error) {
+      console.error('Failed to edit clip:', error);
+      toast.error(t('clipList.clipEditFailed'));
+    }
+  };
+
   useKeyboard({
     onClose: () => appWindow.hide(),
     onSearch: () => setShowSearch(true),
@@ -795,6 +812,18 @@ function App() {
                         },
                       },
                       {
+                        label: t('clipList.editClip'),
+                        // Content is free text for a text clip only: a file clip holds a
+                        // path list and an image holds nothing.
+                        disabled:
+                          clips.find((c) => c.id === contextMenu.itemId)?.clip_type !== 'text',
+                        onClick: () => {
+                          const clip = clips.find((c) => c.id === contextMenu.itemId);
+                          if (!clip) return;
+                          setEditClipTarget({ id: clip.id, content: clip.content });
+                        },
+                      },
+                      {
                         label: t('contextMenu.delete'),
                         danger: true,
                         onClick: () => handleDelete(contextMenu.itemId),
@@ -910,6 +939,18 @@ function App() {
                 if (!target) return;
                 setRenameClipTarget(null);
                 await handleRenameClip(target.id, name);
+              }}
+            />
+
+            <EditClipModal
+              isOpen={editClipTarget !== null}
+              initialContent={editClipTarget?.content ?? ''}
+              onClose={() => setEditClipTarget(null)}
+              onSubmit={async (content) => {
+                const target = editClipTarget;
+                if (!target) return;
+                setEditClipTarget(null);
+                await handleUpdateClipContent(target.id, content);
               }}
             />
 
