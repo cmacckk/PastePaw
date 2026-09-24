@@ -100,6 +100,22 @@ jobs:
         run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
         shell: bash
 
+      - name: Check for the updater signing key
+        id: sign
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          # Updater artifacts must be signed. A fork has no upstream key,
+          # so skip them instead of failing the whole build.
+          if [ -n "$SIGNING_KEY" ]; then
+            echo "args=" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No signing key; skipping updater artifacts."
+            CONFIG=".github/tauri-no-updater-artifacts.json"
+            echo "args=--config $CONFIG" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -110,7 +126,32 @@ jobs:
           projectPath: src-tauri
           releaseId: ${{ needs.create-release.outputs.release_id }}
           releaseBody: ${{ needs.create-release.outputs.release_body }}
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} ${{ steps.sign.outputs.args }}
+
+      - name: Collect the portable build
+        if: success()
+        shell: bash
+        run: |
+          # The raw executable is the portable build: Rust links statically
+          # and WebView2 is part of Windows, so nothing travels with it.
+          SOURCE="src-tauri/target/${{ matrix.target }}/release/PastePaw.exe"
+          if [ ! -f "$SOURCE" ]; then
+            echo "::error::No executable at $SOURCE"
+            exit 1
+          fi
+          ARCH="${{ matrix.target }}"
+          NAME="PastePaw_${GITHUB_REF_NAME#v}_${ARCH%%-*}_portable.exe"
+          cp "$SOURCE" "$NAME"
+          echo "PORTABLE_ASSET=$NAME" >> "$GITHUB_ENV"
+
+      # Only on a real release: a workflow_dispatch run builds a draft whose
+      # tag name does not exist yet.
+      - name: Attach the portable build
+        if: success() && github.event_name != 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ env.PORTABLE_ASSET }}
 
       - name: Trigger Apps Gallery Update
         if: success() && github.event_name != 'workflow_dispatch'
