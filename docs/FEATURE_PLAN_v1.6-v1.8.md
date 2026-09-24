@@ -18,13 +18,51 @@
 
 **v1.6 已完成**（需求 2、需求 4、需求 5-③ + BUG-1/2/3）。
 
-### v1.6 实际产出
+### v1.6 + v1.7 实际产出
 
 | 指标 | 之前 | 现在 |
 |---|---|---|
-| Rust 单元测试 | 0 | **49** |
-| Rust 源文件 | 11 | 14（新增 `clipboard_formats.rs`、`retention.rs`、`pins.rs`） |
+| Rust 单元测试 | 0 | **58** |
+| Rust 源文件 | 11 | 15（新增 `clipboard_formats.rs`、`retention.rs`、`pins.rs`、`export.rs`） |
 | 新增数据库表 | — | `clip_formats` |
+
+### v1.7 进度：文件夹导出 / 导入（需求 1）
+
+| 项 | 状态 |
+|---|---|
+| 导出：单个 JSON，含全部文件夹（D-05） | ✅ 完成 |
+| 导入：文件夹重名合并、内容 hash 相同跳过、图片缺失保留并标记（D-04） | ✅ 完成 |
+| 设置页入口 | ✅ 完成 |
+| 验收：可人工阅读、可手改后仍能导入 | ✅ 已由测试覆盖 |
+| 验收：内容 hash 幂等（连导两次 == 导一次） | ✅ 已由测试覆盖 |
+| 验收：1000 条 + 100 张图片导出 ≤ 5s | ⬜ **未测** |
+
+**JSON 形状**（导出用 `to_string_pretty`，字段名即下方名称）：
+
+```json
+{
+  "version": 1,
+  "app": "PastePaw",
+  "exported_at": "2026-09-24T12:00:00+00:00",
+  "folders": [{ "name": "work", "icon": null, "color": null, "is_system": false }],
+  "clips": [{
+    "clip_type": "text",
+    "content": "…",
+    "text_preview": "…",
+    "content_hash": "…",
+    "folder": "work",
+    "source_app": "chrome.exe",
+    "metadata": null,
+    "created_at": "2026-09-24T11:59:00+00:00",
+    "html": "<b>…</b>",
+    "rtf_base64": null,
+    "image_path": null
+  }]
+}
+```
+
+文件夹用 **名称** 引用而非 id（id 只在产生它的数据库里有意义）。
+`file` 类型的路径列表由换行拼接的 `content` 重建，不在 JSON 里存两份。
 
 **尚未验证（最大风险）**：以上全部功能均**未做端到端人工验证**。
 单元测试覆盖的是纯字节布局与数据库/保留策略逻辑；
