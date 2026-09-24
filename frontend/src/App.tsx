@@ -17,6 +17,7 @@ import { useLanguage } from './hooks/useLanguage';
 import { useTranslation } from 'react-i18next';
 import { Toaster, toast } from 'sonner';
 import { useAutoUpdater } from './hooks/useAutoUpdater';
+import { useTypography } from './hooks/useTypography';
 import { LAYOUT } from './constants';
 import { generateDemoClips } from './debug/demoData';
 
@@ -58,6 +59,9 @@ function App() {
   });
 
   const { updateAvailable } = useAutoUpdater('AppMain');
+
+  // Writes the font settings onto the root element as CSS variables.
+  useTypography(settings);
   console.log('[AppMain:Render] updateAvailable state:', updateAvailable);
 
   // Using refs for event handlers to access latest state without re-attaching listeners

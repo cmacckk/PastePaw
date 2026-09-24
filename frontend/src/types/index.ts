@@ -49,6 +49,12 @@ export interface Settings {
   round_corners?: boolean;
   float_above_taskbar?: boolean;
   card_size?: 'large' | 'medium';
+  /** Empty means keep the stylesheet's font. */
+  ui_font_family?: string;
+  ui_font_weight?: string;
+  content_font_family?: string;
+  content_font_weight?: string;
+  font_scale?: 'small' | 'default' | 'large';
   auto_paste: boolean;
   paste_method?: 'shift_insert' | 'ctrl_v';
   ignore_ghost_clips: boolean;

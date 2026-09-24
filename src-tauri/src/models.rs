@@ -21,6 +21,19 @@ pub struct AppSettings {
     pub float_above_taskbar: bool,
     pub card_size: String,
 
+    /// Typography.
+    ///
+    /// An empty family means "keep what the stylesheet already uses", so the default
+    /// look is exactly what it was before these existed. Interface and content are
+    /// separate because the clip text is deliberately monospaced, and one global font
+    /// would make code clips harder to read.
+    pub ui_font_family: String,
+    pub ui_font_weight: String,
+    pub content_font_family: String,
+    pub content_font_weight: String,
+    /// One of `small`, `default`, `large`. Applied to the whole interface.
+    pub font_scale: String,
+
     // AI
     pub ai_provider: String,
     pub ai_api_key: String,
@@ -55,6 +68,12 @@ impl Default for AppSettings {
             round_corners: false,
             float_above_taskbar: true,
             card_size: "large".to_string(),
+
+            ui_font_family: "".to_string(),
+            ui_font_weight: "400".to_string(),
+            content_font_family: "".to_string(),
+            content_font_weight: "400".to_string(),
+            font_scale: "default".to_string(),
 
             ai_provider: "openai".to_string(),
             ai_api_key: "".to_string(),
@@ -145,4 +164,56 @@ pub struct FolderItem {
     pub color: Option<String>,
     pub is_system: bool,
     pub item_count: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typography_settings_round_trip_through_json() {
+        let settings = AppSettings {
+            ui_font_family: "Microsoft YaHei".to_string(),
+            ui_font_weight: "600".to_string(),
+            content_font_family: "Consolas".to_string(),
+            content_font_weight: "500".to_string(),
+            font_scale: "large".to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&settings).expect("serialize");
+        let restored: AppSettings = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.ui_font_family, "Microsoft YaHei");
+        assert_eq!(restored.ui_font_weight, "600");
+        assert_eq!(restored.content_font_family, "Consolas");
+        assert_eq!(restored.content_font_weight, "500");
+        assert_eq!(restored.font_scale, "large");
+    }
+
+    /// A settings file written before the typography fields existed has no keys for
+    /// them. It has to keep loading, with the defaults standing in, or upgrading would
+    /// break the user's saved configuration.
+    #[test]
+    fn a_settings_file_from_before_typography_still_loads() {
+        let json = r#"{"theme":"dark","mica_effect":"clear"}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("deserialize");
+
+        assert_eq!(settings.theme, "dark");
+        assert_eq!(settings.ui_font_family, "");
+        assert_eq!(settings.font_scale, "default");
+    }
+
+    /// The defaults have to leave the interface looking exactly as it did before the
+    /// font settings existed.
+    #[test]
+    fn the_default_typography_is_the_existing_look() {
+        let settings = AppSettings::default();
+
+        assert_eq!(settings.ui_font_family, "");
+        assert_eq!(settings.content_font_family, "");
+        assert_eq!(settings.ui_font_weight, "400");
+        assert_eq!(settings.font_scale, "default");
+    }
 }

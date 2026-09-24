@@ -49,7 +49,7 @@ export function SearchBar({ query, onQueryChange, onClear }: SearchBarProps) {
         )}
         <div className="flex items-center gap-1 rounded bg-accent px-1.5 py-0.5">
           <Keyboard size={10} className="text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">ESC</span>
+          <span className="text-[0.625rem] text-muted-foreground">ESC</span>
         </div>
       </div>
     </div>

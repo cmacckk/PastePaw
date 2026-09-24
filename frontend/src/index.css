@@ -60,6 +60,12 @@
     @apply border-border;
   }
 
+  html {
+    /* Written from the typography settings. Nearly all text is sized in rem, so this
+       single value scales the whole interface. */
+    font-size: var(--font-scale, 16px);
+  }
+
   html,
   body,
   #root {
@@ -67,7 +73,22 @@
   }
 
   body {
-    @apply font-sans text-foreground antialiased;
+    @apply text-foreground antialiased;
+    /* The fallback is the same stack `font-sans` used, which is what an unset variable
+       means here. */
+    font-family:
+      var(--ui-font-family, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+      'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji');
+    font-weight: var(--ui-font-weight, 400);
+  }
+
+  /* Clip text. Monospaced by default, because that is what makes code and aligned text
+     readable. */
+  .clip-content-font {
+    font-family:
+      var(--content-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      'Liberation Mono', 'Courier New', monospace);
+    font-weight: var(--content-font-weight, 400);
   }
 
   ::-webkit-scrollbar {

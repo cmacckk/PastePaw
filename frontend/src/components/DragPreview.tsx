@@ -1,10 +1,11 @@
 import { ClipboardItem } from '../types';
 import { clsx } from 'clsx';
 import { CLIP_TYPE_ICONS, ClipType } from '../types';
-import { FileText, Image, Code, Type, File, Link } from 'lucide-react';
+import { FileText, Image, Code, Type, File, Link, type LucideIcon } from 'lucide-react';
 
-// Map icon string names to Lucide components
-const IconMap: Record<string, any> = {
+// Map icon string names to Lucide components. Typed as the component itself rather than
+// `any`, so a misspelled icon name is a compile error instead of a blank card.
+const IconMap: Record<string, LucideIcon> = {
   FileText,
   Image,
   Code,
@@ -69,7 +70,7 @@ export function DragPreview({ clip, position }: DragPreviewProps) {
             className="h-3 w-3 object-contain"
           />
         )}
-        <span className="flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-white">
+        <span className="flex-1 truncate text-[0.625rem] font-bold uppercase tracking-wider text-white">
           {title}
         </span>
       </div>
@@ -79,7 +80,7 @@ export function DragPreview({ clip, position }: DragPreviewProps) {
             <span className="text-xs text-muted-foreground">Image Preview</span>
           </div>
         ) : (
-          <pre className="line-clamp-3 whitespace-pre-wrap break-all font-mono text-[10px] leading-tight text-foreground">
+          <pre className="clip-content-font line-clamp-3 whitespace-pre-wrap break-all text-[0.625rem] leading-tight text-foreground">
             {clip.content.substring(0, 100)}
           </pre>
         )}

@@ -79,7 +79,7 @@ function PromptEditor({
           className="bg-transparent text-xs font-semibold text-foreground/70 outline-none transition-colors focus:text-primary"
           title="Click to rename action"
         />
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="font-mono text-[0.625rem] uppercase tracking-wider text-muted-foreground">
           {t('settings.actionName')}
         </span>
       </div>
@@ -724,6 +724,110 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                         />
                       </button>
                     </div>
+                  </section>
+
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      {t('settings.typography')}
+                    </h3>
+
+                    <div className="space-y-3">
+                      <label className="block">
+                        <span className="text-sm font-medium">{t('settings.fontScale')}</span>
+                      </label>
+                      <Select
+                        value={settings.font_scale || 'default'}
+                        onChange={(val) => updateSetting('font_scale', val)}
+                        options={[
+                          { value: 'small', label: t('settings.fontScaleSmall') },
+                          { value: 'default', label: t('settings.fontScaleDefault') },
+                          { value: 'large', label: t('settings.fontScaleLarge') },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="text-sm font-medium">{t('settings.uiFont')}</span>
+                        </label>
+                        <Select
+                          value={settings.ui_font_family || ''}
+                          onChange={(val) => updateSetting('ui_font_family', val)}
+                          options={[
+                            { value: '', label: t('settings.fontDefault') },
+                            { value: 'Segoe UI', label: 'Segoe UI' },
+                            { value: 'Microsoft YaHei', label: '微软雅黑' },
+                            { value: 'DengXian', label: '等线' },
+                            { value: 'SimSun', label: '宋体' },
+                            { value: 'Arial', label: 'Arial' },
+                            { value: 'Verdana', label: 'Verdana' },
+                          ]}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="text-sm font-medium">
+                            {t('settings.uiFontWeight')}
+                          </span>
+                        </label>
+                        <Select
+                          value={settings.ui_font_weight || '400'}
+                          onChange={(val) => updateSetting('ui_font_weight', val)}
+                          options={[
+                            { value: '300', label: t('settings.fontWeightLight') },
+                            { value: '400', label: t('settings.fontWeightNormal') },
+                            { value: '500', label: t('settings.fontWeightMedium') },
+                            { value: '600', label: t('settings.fontWeightSemibold') },
+                            { value: '700', label: t('settings.fontWeightBold') },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="text-sm font-medium">
+                            {t('settings.contentFont')}
+                          </span>
+                        </label>
+                        <Select
+                          value={settings.content_font_family || ''}
+                          onChange={(val) => updateSetting('content_font_family', val)}
+                          options={[
+                            { value: '', label: t('settings.fontDefaultMono') },
+                            { value: 'Consolas', label: 'Consolas' },
+                            { value: 'Cascadia Mono', label: 'Cascadia Mono' },
+                            { value: 'Courier New', label: 'Courier New' },
+                            { value: 'Microsoft YaHei', label: '微软雅黑' },
+                            { value: 'SimSun', label: '宋体' },
+                          ]}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="text-sm font-medium">
+                            {t('settings.contentFontWeight')}
+                          </span>
+                        </label>
+                        <Select
+                          value={settings.content_font_weight || '400'}
+                          onChange={(val) => updateSetting('content_font_weight', val)}
+                          options={[
+                            { value: '300', label: t('settings.fontWeightLight') },
+                            { value: '400', label: t('settings.fontWeightNormal') },
+                            { value: '500', label: t('settings.fontWeightMedium') },
+                            { value: '600', label: t('settings.fontWeightSemibold') },
+                            { value: '700', label: t('settings.fontWeightBold') },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">{t('settings.typographyHint')}</p>
                   </section>
 
                   <section className="space-y-4">

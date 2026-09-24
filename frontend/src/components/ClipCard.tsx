@@ -109,7 +109,7 @@ export const ClipCard = memo(
 
       if (clip.clip_type === 'file') {
         return (
-          <ul className="space-y-1 text-[12px] leading-tight">
+          <ul className="space-y-1 text-[0.75rem] leading-tight">
             {filePaths.slice(0, FILE_PREVIEW_LIMIT).map((path) => (
               <li key={path} className="flex items-center gap-1.5">
                 <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -126,7 +126,7 @@ export const ClipCard = memo(
       }
 
       return (
-        <pre className="whitespace-pre-wrap break-all font-mono text-[13px] leading-tight text-foreground">
+        <pre className="clip-content-font whitespace-pre-wrap break-all text-[0.8125rem] leading-tight text-foreground">
           <span>{clip.content.substring(0, PREVIEW_CHAR_LIMIT)}</span>
         </pre>
       );
@@ -227,7 +227,7 @@ export const ClipCard = memo(
                 className="h-4 w-4 object-contain"
               />
             )}
-            <span className="flex-1 truncate text-[11px] font-bold uppercase tracking-wider text-black/80">
+            <span className="flex-1 truncate text-[0.6875rem] font-bold uppercase tracking-wider text-black/80">
               {title}
             </span>
             {/* Folders double as pinboards, so membership means "kept". */}
@@ -267,7 +267,7 @@ export const ClipCard = memo(
             data-el="clip-card-footer"
             className="absolute bottom-0 left-0 right-0 z-10 flex items-center gap-2 bg-gradient-to-t from-card via-card/100 to-transparent/0 px-3 py-1.5"
           >
-            <span className="shrink-0 text-[11px] font-medium text-muted-foreground/50">
+            <span className="shrink-0 text-[0.6875rem] font-medium text-muted-foreground/50">
               {clip.clip_type === 'image'
                 ? t('clipList.imageSize', { size: imageSizeKb })
                 : clip.clip_type === 'file'
@@ -286,7 +286,7 @@ export const ClipCard = memo(
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
                 title={t('folders.jumpToFolder')}
-                className="ml-auto flex min-w-0 items-center gap-1 rounded-full bg-accent/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="ml-auto flex min-w-0 items-center gap-1 rounded-full bg-accent/40 px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <FolderOpen size={10} className="shrink-0" />
                 <span className="truncate">{folderName}</span>
