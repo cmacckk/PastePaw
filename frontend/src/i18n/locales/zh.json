@@ -17,7 +17,9 @@
     "emptyDesc": "复制内容后将显示在这里",
     "loadingClips": "加载中...",
     "imageSize": "图片 ({{size}}KB)",
-    "textLength": "{{count}} 个字符"
+    "textLength": "{{count}} 个字符",
+    "fileCount": "{{count}} 个文件",
+    "moreFiles": "还有 {{count}} 个"
   },
   "folders": {
     "all": "全部",

@@ -17,7 +17,9 @@
     "emptyDesc": "Copy something to your clipboard and it will appear here.",
     "loadingClips": "Loading clips...",
     "imageSize": "Image ({{size}}KB)",
-    "textLength": "{{count}} characters"
+    "textLength": "{{count}} characters",
+    "fileCount": "{{count}} files",
+    "moreFiles": "+{{count}} more"
   },
   "folders": {
     "all": "All Clips",

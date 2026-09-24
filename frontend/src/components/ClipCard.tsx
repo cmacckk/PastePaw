@@ -4,7 +4,7 @@ import { useMemo, memo, useState, forwardRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { PREVIEW_CHAR_LIMIT } from '../constants';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, File } from 'lucide-react';
 import { useMotionValue, useMotionTemplate, motion } from 'framer-motion';
 
 interface ClipCardProps {
@@ -17,6 +17,16 @@ interface ClipCardProps {
   onDragStart: (clipId: string, startX: number, startY: number) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }
+
+/** How many file names a card lists before the rest are summarised. */
+const FILE_PREVIEW_LIMIT = 4;
+
+/** The last segment of a Windows or POSIX path. */
+const fileNameOf = (path: string): string => {
+  const trimmed = path.replace(/[\\/]+$/, '');
+  const separator = Math.max(trimmed.lastIndexOf('\\'), trimmed.lastIndexOf('/'));
+  return separator >= 0 ? trimmed.slice(separator + 1) : trimmed;
+};
 
 export const ClipCard = memo(
   forwardRef<HTMLDivElement, ClipCardProps>(function ClipCard(
@@ -65,6 +75,12 @@ export const ClipCard = memo(
       return 0;
     }, [clip.clip_type, clip.metadata]);
 
+    // A file clip stores its paths newline joined, so the card can list them.
+    const filePaths = useMemo(
+      () => (clip.clip_type === 'file' ? clip.content.split('\n').filter(Boolean) : []),
+      [clip.clip_type, clip.content]
+    );
+
     // Memoize the content rendering
     const renderedContent = useMemo(() => {
       if (clip.clip_type === 'image') {
@@ -81,14 +97,32 @@ export const ClipCard = memo(
             )}
           </div>
         );
-      } else {
+      }
+
+      if (clip.clip_type === 'file') {
         return (
-          <pre className="whitespace-pre-wrap break-all font-mono text-[13px] leading-tight text-foreground">
-            <span>{clip.content.substring(0, PREVIEW_CHAR_LIMIT)}</span>
-          </pre>
+          <ul className="space-y-1 text-[12px] leading-tight">
+            {filePaths.slice(0, FILE_PREVIEW_LIMIT).map((path) => (
+              <li key={path} className="flex items-center gap-1.5">
+                <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{fileNameOf(path)}</span>
+              </li>
+            ))}
+            {filePaths.length > FILE_PREVIEW_LIMIT && (
+              <li className="pl-5 text-muted-foreground/70">
+                {t('clipList.moreFiles', { count: filePaths.length - FILE_PREVIEW_LIMIT })}
+              </li>
+            )}
+          </ul>
         );
       }
-    }, [clip.clip_type, clip.content, imageSrc]);
+
+      return (
+        <pre className="whitespace-pre-wrap break-all font-mono text-[13px] leading-tight text-foreground">
+          <span>{clip.content.substring(0, PREVIEW_CHAR_LIMIT)}</span>
+        </pre>
+      );
+    }, [clip.clip_type, clip.content, imageSrc, filePaths, t]);
 
     // Generate stable color index based on source app name
     const getAppColorIndex = (name: string) => {
@@ -222,7 +256,9 @@ export const ClipCard = memo(
             <span className="text-[11px] font-medium text-muted-foreground/50">
               {clip.clip_type === 'image'
                 ? t('clipList.imageSize', { size: imageSizeKb })
-                : t('clipList.textLength', { count: clip.content.length })}
+                : clip.clip_type === 'file'
+                  ? t('clipList.fileCount', { count: filePaths.length })
+                  : t('clipList.textLength', { count: clip.content.length })}
             </span>
           </div>
         </div>
