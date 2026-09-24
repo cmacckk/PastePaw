@@ -112,6 +112,151 @@ fn decode_ansi_list(list: &[u8]) -> Vec<String> {
 }
 
 // ---------------------------------------------------------------------------
+// CF_DIB / CF_DIBV5
+// ---------------------------------------------------------------------------
+
+/// `sizeof(BITMAPINFOHEADER)`
+pub const BITMAPINFOHEADER_SIZE: usize = 40;
+/// `sizeof(BITMAPV5HEADER)`
+pub const BITMAPV5HEADER_SIZE: usize = 124;
+
+/// `BI_RGB`
+const BI_RGB: u32 = 0;
+/// `BI_BITFIELDS`
+const BI_BITFIELDS: u32 = 3;
+/// `LCS_sRGB`, i.e. the bytes `sRGB` read as a little-endian `DWORD`.
+const LCS_SRGB: u32 = 0x7352_4742;
+/// `LCS_GM_IMAGES`
+const LCS_GM_IMAGES: u32 = 4;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DibError {
+    /// The image is empty and cannot be represented by a DIB.
+    EmptyImage,
+    /// `rgba` was not exactly `width * height * 4` bytes.
+    WrongPixelBuffer { expected: usize, actual: usize },
+}
+
+/// Builds a `CF_DIB` payload: a `BITMAPINFOHEADER` followed by 32bpp `BI_RGB`
+/// pixels.
+///
+/// The 4th byte of each pixel is nominally unused under `BI_RGB`, but the alpha
+/// channel is kept in place because that is what applications and other clipboard
+/// managers put there. Use [`build_dibv5`] when alpha has to be declared.
+pub fn build_dib(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, DibError> {
+    let pixels = to_bottom_up_bgra(rgba, width, height)?;
+    let mut out = Vec::with_capacity(BITMAPINFOHEADER_SIZE + pixels.len());
+
+    push_u32(&mut out, BITMAPINFOHEADER_SIZE as u32); // biSize
+    push_i32(&mut out, width as i32); // biWidth
+    push_i32(&mut out, height as i32); // biHeight, positive => bottom-up
+    push_u16(&mut out, 1); // biPlanes
+    push_u16(&mut out, 32); // biBitCount
+    push_u32(&mut out, BI_RGB); // biCompression
+    push_u32(&mut out, pixels.len() as u32); // biSizeImage
+    push_i32(&mut out, 0); // biXPelsPerMeter
+    push_i32(&mut out, 0); // biYPelsPerMeter
+    push_u32(&mut out, 0); // biClrUsed
+    push_u32(&mut out, 0); // biClrImportant
+    debug_assert_eq!(out.len(), BITMAPINFOHEADER_SIZE);
+
+    out.extend_from_slice(&pixels);
+    Ok(out)
+}
+
+/// Builds a `CF_DIBV5` payload: a `BITMAPV5HEADER` followed by 32bpp
+/// `BI_BITFIELDS` pixels with an explicit alpha mask.
+///
+/// This is the variant that carries transparency properly, so it is the one a
+/// target application should prefer.
+pub fn build_dibv5(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, DibError> {
+    let pixels = to_bottom_up_bgra(rgba, width, height)?;
+    let mut out = Vec::with_capacity(BITMAPV5HEADER_SIZE + pixels.len());
+
+    push_u32(&mut out, BITMAPV5HEADER_SIZE as u32); // bV5Size
+    push_i32(&mut out, width as i32); // bV5Width
+    push_i32(&mut out, height as i32); // bV5Height, positive => bottom-up
+    push_u16(&mut out, 1); // bV5Planes
+    push_u16(&mut out, 32); // bV5BitCount
+    push_u32(&mut out, BI_BITFIELDS); // bV5Compression
+    push_u32(&mut out, pixels.len() as u32); // bV5SizeImage
+    push_i32(&mut out, 0); // bV5XPelsPerMeter
+    push_i32(&mut out, 0); // bV5YPelsPerMeter
+    push_u32(&mut out, 0); // bV5ClrUsed
+    push_u32(&mut out, 0); // bV5ClrImportant
+                           // Channel masks. Because a DIB stores bytes little-endian, 0x00FF0000 for red
+                           // means the byte order is blue, green, red, alpha.
+    push_u32(&mut out, 0x00FF_0000); // bV5RedMask
+    push_u32(&mut out, 0x0000_FF00); // bV5GreenMask
+    push_u32(&mut out, 0x0000_00FF); // bV5BlueMask
+    push_u32(&mut out, 0xFF00_0000); // bV5AlphaMask
+    push_u32(&mut out, LCS_SRGB); // bV5CSType
+    out.extend_from_slice(&[0u8; 36]); // bV5Endpoints, unused
+    push_u32(&mut out, 0); // bV5GammaRed
+    push_u32(&mut out, 0); // bV5GammaGreen
+    push_u32(&mut out, 0); // bV5GammaBlue
+    push_u32(&mut out, LCS_GM_IMAGES); // bV5Intent
+    push_u32(&mut out, 0); // bV5ProfileData
+    push_u32(&mut out, 0); // bV5ProfileSize
+    push_u32(&mut out, 0); // bV5Reserved
+    debug_assert_eq!(out.len(), BITMAPV5HEADER_SIZE);
+
+    out.extend_from_slice(&pixels);
+    Ok(out)
+}
+
+/// Converts top-down RGBA rows into the bottom-up BGRA buffer a DIB expects.
+///
+/// Two things are easy to get wrong here and both produce a visibly broken image
+/// rather than an error: the row order is reversed for a positive height, and the
+/// red and blue channels are swapped.
+fn to_bottom_up_bgra(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, DibError> {
+    if width == 0 || height == 0 {
+        return Err(DibError::EmptyImage);
+    }
+
+    let (width, height) = (width as usize, height as usize);
+    let expected = width * height * 4;
+    if rgba.len() != expected {
+        return Err(DibError::WrongPixelBuffer {
+            expected,
+            actual: rgba.len(),
+        });
+    }
+
+    let mut out = vec![0u8; expected];
+    for y in 0..height {
+        let source = &rgba[y * width * 4..(y + 1) * width * 4];
+        let destination = &mut out[(height - 1 - y) * width * 4..(height - y) * width * 4];
+
+        // Both slices are exactly `width * 4` long, so there is never a remainder.
+        let (source_pixels, _) = source.as_chunks::<4>();
+        let (destination_pixels, _) = destination.as_chunks_mut::<4>();
+        // Row 0 of the DIB is the bottom row of the image.
+        for (src, dst) in source_pixels.iter().zip(destination_pixels.iter_mut()) {
+            dst[0] = src[2]; // blue
+            dst[1] = src[1]; // green
+            dst[2] = src[0]; // red
+            dst[3] = src[3]; // alpha
+        }
+    }
+
+    Ok(out)
+}
+
+fn push_u32(out: &mut Vec<u8>, value: u32) {
+    out.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_i32(out: &mut Vec<u8>, value: i32) {
+    out.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_u16(out: &mut Vec<u8>, value: u16) {
+    out.extend_from_slice(&value.to_le_bytes());
+}
+
+// ---------------------------------------------------------------------------
 // CF_HTML
 // ---------------------------------------------------------------------------
 
@@ -581,5 +726,112 @@ mod tests {
             [FORMAT_TEXT, FORMAT_HTML, FORMAT_RTF, FORMAT_FILE],
             ["text", "html", "rtf", "file"]
         );
+    }
+
+    // -- CF_DIB / CF_DIBV5 -------------------------------------------------
+
+    /// 2x2: top row red then green, bottom row blue then white.
+    fn two_by_two() -> Vec<u8> {
+        vec![
+            0xFF, 0x00, 0x00, 0xFF, // red
+            0x00, 0xFF, 0x00, 0xFF, // green
+            0x00, 0x00, 0xFF, 0xFF, // blue
+            0xFF, 0xFF, 0xFF, 0xFF, // white
+        ]
+    }
+
+    #[test]
+    fn dib_rows_are_flipped_and_channels_swapped() {
+        let dib = build_dib(&two_by_two(), 2, 2).unwrap();
+        let pixels = &dib[BITMAPINFOHEADER_SIZE..];
+
+        // The bottom row comes first and every pixel is stored BGRA.
+        assert_eq!(&pixels[0..4], &[0xFF, 0x00, 0x00, 0xFF]); // blue
+        assert_eq!(&pixels[4..8], &[0xFF, 0xFF, 0xFF, 0xFF]); // white
+        assert_eq!(&pixels[8..12], &[0x00, 0x00, 0xFF, 0xFF]); // red
+        assert_eq!(&pixels[12..16], &[0x00, 0xFF, 0x00, 0xFF]); // green
+    }
+
+    #[test]
+    fn dib_header_declares_a_bottom_up_32bpp_image() {
+        let dib = build_dib(&two_by_two(), 2, 2).unwrap();
+
+        assert_eq!(u32::from_le_bytes(dib[0..4].try_into().unwrap()), 40);
+        assert_eq!(i32::from_le_bytes(dib[4..8].try_into().unwrap()), 2); // width
+        assert_eq!(i32::from_le_bytes(dib[8..12].try_into().unwrap()), 2); // +height
+        assert_eq!(u16::from_le_bytes(dib[12..14].try_into().unwrap()), 1); // planes
+        assert_eq!(u16::from_le_bytes(dib[14..16].try_into().unwrap()), 32); // bpp
+        assert_eq!(u32::from_le_bytes(dib[16..20].try_into().unwrap()), BI_RGB);
+        assert_eq!(u32::from_le_bytes(dib[20..24].try_into().unwrap()), 16); // image size
+    }
+
+    #[test]
+    fn dibv5_header_is_124_bytes_and_declares_an_alpha_mask() {
+        let dib = build_dibv5(&two_by_two(), 2, 2).unwrap();
+
+        assert_eq!(u32::from_le_bytes(dib[0..4].try_into().unwrap()), 124);
+        assert_eq!(
+            u32::from_le_bytes(dib[16..20].try_into().unwrap()),
+            BI_BITFIELDS
+        );
+        assert_eq!(
+            u32::from_le_bytes(dib[40..44].try_into().unwrap()),
+            0x00FF_0000
+        );
+        assert_eq!(
+            u32::from_le_bytes(dib[44..48].try_into().unwrap()),
+            0x0000_FF00
+        );
+        assert_eq!(
+            u32::from_le_bytes(dib[48..52].try_into().unwrap()),
+            0x0000_00FF
+        );
+        assert_eq!(
+            u32::from_le_bytes(dib[52..56].try_into().unwrap()),
+            0xFF00_0000
+        );
+        assert_eq!(
+            u32::from_le_bytes(dib[56..60].try_into().unwrap()),
+            LCS_SRGB
+        );
+        assert_eq!(dib.len(), BITMAPV5HEADER_SIZE + 16);
+    }
+
+    #[test]
+    fn dib_and_dibv5_carry_identical_pixels() {
+        let rgba = two_by_two();
+        let dib = build_dib(&rgba, 2, 2).unwrap();
+        let dibv5 = build_dibv5(&rgba, 2, 2).unwrap();
+
+        assert_eq!(
+            &dib[BITMAPINFOHEADER_SIZE..],
+            &dibv5[BITMAPV5HEADER_SIZE..],
+            "the two DIB variants must not disagree about the pixels"
+        );
+    }
+
+    #[test]
+    fn dib_keeps_the_alpha_channel() {
+        let rgba = vec![0x10, 0x20, 0x30, 0x40];
+        let dib = build_dib(&rgba, 1, 1).unwrap();
+        assert_eq!(&dib[BITMAPINFOHEADER_SIZE..], &[0x30, 0x20, 0x10, 0x40]);
+    }
+
+    #[test]
+    fn dib_rejects_a_pixel_buffer_of_the_wrong_length() {
+        assert_eq!(
+            build_dib(&[0u8; 8], 2, 2),
+            Err(DibError::WrongPixelBuffer {
+                expected: 16,
+                actual: 8
+            })
+        );
+    }
+
+    #[test]
+    fn dib_rejects_a_zero_sized_image() {
+        assert_eq!(build_dib(&[], 0, 0), Err(DibError::EmptyImage));
+        assert_eq!(build_dib(&[], 4, 0), Err(DibError::EmptyImage));
+        assert_eq!(build_dibv5(&[], 0, 4), Err(DibError::EmptyImage));
     }
 }

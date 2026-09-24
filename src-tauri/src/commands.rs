@@ -537,7 +537,7 @@ pub async fn paste_clip(
         .map_err(|e| e.to_string())?;
 
     match clip {
-        Some(clip) => {
+        Some(mut clip) => {
             // Synchronize clipboard access across the app
             let _guard = crate::clipboard::CLIPBOARD_SYNC.lock().await;
 
@@ -551,47 +551,46 @@ pub async fn paste_clip(
 
             let mut final_res = Ok(());
 
-            if clip.clip_type == "image" {
-                crate::clipboard::set_ignore_hash(content_hash.clone());
-                // TODO(v1.6 step 4b): images are still written by the WebView through
-                // navigator.clipboard, which drops the alpha channel.
-            } else {
-                crate::clipboard::set_ignore_hash(content_hash.clone());
+            crate::clipboard::set_ignore_hash(content_hash.clone());
 
-                let mut payload = crate::clipboard::ClipboardPayload::default();
-                if clip.clip_type == "file" {
-                    match load_clip_files(pool, &uuid).await {
-                        Some(files) if !files.is_empty() => payload.files = Some(files),
-                        // The stored list is the only way to reproduce a file clip, so
-                        // refuse rather than silently copying nothing.
-                        _ => final_res = Err("This file clip has no stored file list".to_string()),
-                    }
-                } else {
-                    payload.text = Some(String::from_utf8_lossy(&clip.content).to_string());
-                }
+            // Every clip type now goes through the same writer, so the clipboard is
+            // replaced exactly once with the full set of formats this clip has.
+            let mut payload = crate::clipboard::ClipboardPayload::default();
+            match clip.clip_type.as_str() {
+                "image" => match load_full_image_content(pool, &mut clip).await {
+                    Ok(png) => payload.image_png = Some(png),
+                    Err(e) => final_res = Err(e),
+                },
+                "file" => match load_clip_files(pool, &uuid).await {
+                    Some(files) if !files.is_empty() => payload.files = Some(files),
+                    // The stored list is the only way to reproduce a file clip, so
+                    // refuse rather than silently copying nothing.
+                    _ => final_res = Err("This file clip has no stored file list".to_string()),
+                },
+                _ => payload.text = Some(String::from_utf8_lossy(&clip.content).to_string()),
+            }
 
-                if final_res.is_ok() {
-                    let mut last_err = String::new();
-                    for i in 0..5 {
-                        match crate::clipboard::write_clipboard_payload(&payload) {
-                            Ok(()) => {
-                                last_err.clear();
-                                break;
-                            }
-                            Err(e) => {
-                                last_err = e;
-                                log::warn!(
-                                    "Clipboard write attempt {} failed: {}. Retrying...",
-                                    i + 1,
-                                    last_err
-                                );
-                                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                            }
+            if final_res.is_ok() {
+                let mut last_err = String::new();
+                for i in 0..5 {
+                    match crate::clipboard::write_clipboard_payload(&payload) {
+                        Ok(()) => {
+                            last_err.clear();
+                            break;
+                        }
+                        Err(e) => {
+                            last_err = e;
+                            log::warn!(
+                                "Clipboard write attempt {} failed: {}. Retrying...",
+                                i + 1,
+                                last_err
+                            );
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                         }
                     }
-                    if !last_err.is_empty() {
-                        final_res = Err(format!("Failed to write clip to clipboard: {last_err}"));
-                    }
+                }
+                if !last_err.is_empty() {
+                    final_res = Err(format!("Failed to write clip to clipboard: {last_err}"));
                 }
             }
 

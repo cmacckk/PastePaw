@@ -20,29 +20,6 @@ import { useAutoUpdater } from './hooks/useAutoUpdater';
 import { LAYOUT } from './constants';
 import { generateDemoClips } from './debug/demoData';
 
-const base64ToBlob = (base64: string, mimeType: string = 'image/png'): Blob => {
-  const byteCharacters = atob(base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: mimeType });
-};
-
-const getImageMimeType = (metadata: string | null): string => {
-  if (!metadata) return 'image/png';
-  try {
-    const parsed = JSON.parse(metadata) as { format?: string };
-    const format = parsed.format?.toLowerCase();
-    if (format === 'jpeg' || format === 'jpg') return 'image/jpeg';
-    if (format === 'webp') return 'image/webp';
-  } catch {
-    // Ignore metadata parse errors and fall back.
-  }
-  return 'image/png';
-};
-
 function App() {
   const [clips, setClips] = useState<AppClipboardItem[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -485,27 +462,11 @@ function App() {
     }
   };
 
-  const getFullImageBlob = useCallback(
-    async (clipId: string, fallbackClip: AppClipboardItem): Promise<Blob> => {
-      const detail = await invoke<AppClipboardItem>('get_clip_detail', { id: clipId });
-      const mimeType = getImageMimeType(detail.metadata ?? fallbackClip.metadata);
-      return base64ToBlob(detail.content, mimeType);
-    },
-    []
-  );
-
   const handlePaste = async (clipId: string) => {
     try {
-      const clip = clips.find((c) => c.id === clipId);
-      if (clip && clip.clip_type === 'image') {
-        try {
-          const blob = await getFullImageBlob(clipId, clip);
-          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        } catch (e) {
-          console.error('Frontend clipboard write failed', e);
-        }
-      }
-
+      // The backend now writes every format a clip has, images included, so there is
+      // nothing left to put on the clipboard from the WebView. Doing it there also
+      // dropped the alpha channel.
       invoke('paste_clip', { id: clipId }).catch(console.error);
     } catch (error) {
       console.error('Failed to paste clip:', error);
@@ -514,12 +475,6 @@ function App() {
 
   const handleCopy = async (clipId: string) => {
     try {
-      const clip = clips.find((c) => c.id === clipId);
-      if (clip && clip.clip_type === 'image') {
-        const blob = await getFullImageBlob(clipId, clip);
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      }
-
       await invoke('paste_clip', { id: clipId });
 
       toast.success(t('common.copied'));

@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use std::ffi::OsStr;
 #[cfg(target_os = "windows")]
 use std::os::windows::ffi::OsStrExt;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tauri_plugin_clipboard_x::{read_text, start_listening};
 use uuid::Uuid;
 #[cfg(target_os = "windows")]
@@ -30,7 +30,7 @@ use windows::Win32::Storage::FileSystem::{
 #[cfg(target_os = "windows")]
 use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardOwner,
-    IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
+    IsClipboardFormatAvailable, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
 };
 #[cfg(target_os = "windows")]
 use windows::Win32::System::Memory::{
@@ -225,8 +225,12 @@ fn read_clipboard_file_list() -> Result<Vec<String>, String> {
         .map_err(|e| format!("parse CF_HDROP failed: {e:?}"))
 }
 
+/// `#define CF_DIB 8`.
+const CF_DIB: u32 = 8;
 /// `#define CF_UNICODETEXT 13`.
 const CF_UNICODETEXT: u32 = 13;
+/// `#define CF_DIBV5 17`.
+const CF_DIBV5: u32 = 17;
 
 /// The formats to place on the clipboard for one clip.
 ///
@@ -237,11 +241,15 @@ const CF_UNICODETEXT: u32 = 13;
 pub struct ClipboardPayload {
     pub text: Option<String>,
     pub files: Option<Vec<String>>,
+    /// The PNG bytes stored for an image clip.
+    pub image_png: Option<Vec<u8>>,
 }
 
 impl ClipboardPayload {
     pub fn is_empty(&self) -> bool {
-        self.text.is_none() && self.files.as_ref().is_none_or(|files| files.is_empty())
+        self.text.is_none()
+            && self.files.as_ref().is_none_or(|files| files.is_empty())
+            && self.image_png.is_none()
     }
 }
 
@@ -263,11 +271,50 @@ pub fn write_clipboard_payload(payload: &ClipboardPayload) -> Result<(), String>
     if let Some(files) = payload.files.as_ref().filter(|files| !files.is_empty()) {
         set_clipboard_bytes(CF_HDROP, &crate::clipboard_formats::build_hdrop(files))?;
     }
+    if let Some(png) = payload.image_png.as_deref() {
+        write_image_formats(png)?;
+    }
     if let Some(text) = payload.text.as_deref() {
         set_clipboard_bytes(CF_UNICODETEXT, &to_utf16_bytes(text))?;
     }
 
     Ok(())
+}
+
+/// The clipboard format id of the registered `"PNG"` format.
+///
+/// Registration is idempotent and the id is stable for the process lifetime, so it
+/// is resolved once.
+fn png_clipboard_format() -> u32 {
+    static PNG_FORMAT: OnceLock<u32> = OnceLock::new();
+    *PNG_FORMAT.get_or_init(|| {
+        let name: Vec<u16> = "PNG\0".encode_utf16().collect();
+        unsafe { RegisterClipboardFormatW(windows::core::PCWSTR(name.as_ptr())) }
+    })
+}
+
+/// Puts an image on the clipboard in the formats applications actually look for.
+///
+/// Three go on at once: the untouched PNG bytes for browsers and anything PNG aware,
+/// `CF_DIBV5` for applications that honour the alpha channel, and the older `CF_DIB`
+/// for applications that only search for that. Writing the image here instead of
+/// from the WebView is what lets transparency survive a paste; the previous
+/// `navigator.clipboard` path only ever produced an opaque bitmap.
+fn write_image_formats(png_bytes: &[u8]) -> Result<(), String> {
+    let decoded = image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png)
+        .map_err(|e| format!("decoding the stored image failed: {e}"))?
+        .to_rgba8();
+    let (width, height) = (decoded.width(), decoded.height());
+    let rgba = decoded.into_raw();
+
+    let dibv5 = crate::clipboard_formats::build_dibv5(&rgba, width, height)
+        .map_err(|e| format!("building CF_DIBV5 failed: {e:?}"))?;
+    let dib = crate::clipboard_formats::build_dib(&rgba, width, height)
+        .map_err(|e| format!("building CF_DIB failed: {e:?}"))?;
+
+    set_clipboard_bytes(CF_DIBV5, &dibv5)?;
+    set_clipboard_bytes(CF_DIB, &dib)?;
+    set_clipboard_bytes(png_clipboard_format(), png_bytes)
 }
 
 /// UTF-16LE followed by a terminating NUL, the layout `CF_UNICODETEXT` requires.
@@ -1172,16 +1219,25 @@ mod tests {
         assert!(ClipboardPayload {
             text: None,
             files: Some(Vec::new()),
+            image_png: None,
         }
         .is_empty());
         assert!(!ClipboardPayload {
             text: Some(String::new()),
             files: None,
+            image_png: None,
         }
         .is_empty());
         assert!(!ClipboardPayload {
             text: None,
             files: Some(vec![r"C:\a.txt".to_string()]),
+            image_png: None,
+        }
+        .is_empty());
+        assert!(!ClipboardPayload {
+            text: None,
+            files: None,
+            image_png: Some(vec![1, 2, 3]),
         }
         .is_empty());
     }
