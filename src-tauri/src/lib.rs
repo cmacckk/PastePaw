@@ -117,7 +117,7 @@ pub fn run_app() {
                     log::info!("THEME:System theme changed to: {:?}, win.theme(): {:?}", theme, window.theme());
                     let label = window.label().to_string();
                     let app_handle = window.app_handle().clone();
-                    let theme_ = theme.clone();
+                    let theme_ = *theme;
 
                     // Update tray icon to match new system theme
                     if let Some(tray) = app_handle.tray_by_id("main") {
@@ -140,8 +140,8 @@ pub fn run_app() {
                         }
                     });
                 }
-                tauri::WindowEvent::Focused(focused) => {
-                    if !focused {
+                tauri::WindowEvent::Focused(focused)
+                    if !focused => {
                         let label = window.label();
                         // Only auto-hide the main window
                         if label == "main" {
@@ -197,7 +197,6 @@ pub fn run_app() {
                             }
                         }
                     }
-                }
                 _ => {}
             }
         })
@@ -500,7 +499,7 @@ pub fn animate_window_show(window: &tauri::WebviewWindow) {
                 work_area.position.y + work_area.size.height as i32
             };
 
-            let target_width = (work_area.size.width as i32 - side_margin_px * 2).max(1) as i32;
+            let target_width = (work_area.size.width as i32 - side_margin_px * 2).max(1);
             let target_height = window_height_px as i32;
             let target_x = work_area.position.x + side_margin_px;
 
@@ -977,7 +976,7 @@ pub fn update_window_size(window: &tauri::WebviewWindow) {
         .current_monitor()
         .ok()
         .flatten()
-        .or_else(|| crate::get_monitor_at_cursor(&window))
+        .or_else(|| crate::get_monitor_at_cursor(window))
     {
         let scale_factor = monitor.scale_factor();
         let monitor_pos = monitor.position();

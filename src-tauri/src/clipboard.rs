@@ -1175,7 +1175,7 @@ unsafe fn extract_icon(path: &str) -> Option<String> {
         let _ = DeleteObject(mem_bm.into());
         let _ = ReleaseDC(None, screen_dc);
 
-        for chunk in pixels.chunks_exact_mut(4) {
+        for chunk in pixels.as_chunks_mut::<4>().0 {
             let b = chunk[0];
             let r = chunk[2];
             chunk[0] = r;

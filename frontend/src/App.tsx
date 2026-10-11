@@ -297,10 +297,7 @@ function App() {
       setFolders(data);
 
       const currentSelected = selectedFolderRef.current;
-      if (
-        currentSelected !== null &&
-        !data.some((f) => String(f.id) === String(currentSelected))
-      ) {
+      if (currentSelected !== null && !data.some((f) => String(f.id) === String(currentSelected))) {
         selectedFolderRef.current = null;
         setSelectedFolder(null);
         setSelectedClipId(null);

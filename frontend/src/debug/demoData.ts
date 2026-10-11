@@ -39,10 +39,38 @@ export const DEMO_FOLDER_IDS = {
  */
 export function generateDemoFolders(): FolderItem[] {
   return [
-    { id: DEMO_FOLDER_IDS.pinned, name: 'Pinned', icon: null, color: null, is_system: true, item_count: 1 },
-    { id: DEMO_FOLDER_IDS.work, name: 'Work', icon: null, color: null, is_system: false, item_count: 2 },
-    { id: DEMO_FOLDER_IDS.snippets, name: 'Snippets', icon: null, color: null, is_system: false, item_count: 2 },
-    { id: DEMO_FOLDER_IDS.design, name: 'Design', icon: null, color: null, is_system: false, item_count: 1 },
+    {
+      id: DEMO_FOLDER_IDS.pinned,
+      name: 'Pinned',
+      icon: null,
+      color: null,
+      is_system: true,
+      item_count: 1,
+    },
+    {
+      id: DEMO_FOLDER_IDS.work,
+      name: 'Work',
+      icon: null,
+      color: null,
+      is_system: false,
+      item_count: 2,
+    },
+    {
+      id: DEMO_FOLDER_IDS.snippets,
+      name: 'Snippets',
+      icon: null,
+      color: null,
+      is_system: false,
+      item_count: 2,
+    },
+    {
+      id: DEMO_FOLDER_IDS.design,
+      name: 'Design',
+      icon: null,
+      color: null,
+      is_system: false,
+      item_count: 1,
+    },
   ];
 }
 
