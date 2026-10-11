@@ -84,12 +84,10 @@ pub fn run_app() {
 
     #[cfg(not(feature = "app-store"))]
     {
-        builder = builder
-            .plugin(tauri_plugin_autostart::init(
-                MacosLauncher::LaunchAgent,
-                Some(vec!["--flag1", "--flag2"]),
-            ))
-            .plugin(tauri_plugin_updater::Builder::new().build());
+        builder = builder.plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--flag1", "--flag2"]),
+        ));
     }
 
     builder
@@ -388,7 +386,6 @@ pub fn run_app() {
             commands::refresh_window,
             commands::get_available_update,
             commands::check_update_now,
-            commands::install_update,
             commands::prune_history,
             commands::toggle_pin,
             commands::export_folders,

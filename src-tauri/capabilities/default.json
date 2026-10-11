@@ -18,7 +18,6 @@
     "clipboard-x:default",
     "log:default",
     "opener:default",
-    "updater:default",
     "process:default",
     "aptabase:default",
     "notification:default",
@@ -26,7 +25,13 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         {
-          "url": "https://github.com/XueshiQiao/PastePaw"
+          "url": "https://github.com/cmacckk/PastePaw"
+        },
+        {
+          "url": "https://github.com/cmacckk/PastePaw/releases"
+        },
+        {
+          "url": "https://github.com/cmacckk/PastePaw/releases/latest"
         }
       ]
     }

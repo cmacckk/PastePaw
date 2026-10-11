@@ -2,6 +2,20 @@
 
 All notable changes to PastePaw will be documented in this file.
 
+## Unreleased
+
+### Changed
+- **The application no longer installs its own updates.** The updater plugin pointed at the upstream repository and carried the upstream signing key, so a release published there would have been offered to this build and installed over it. PastePaw now reads the newest release of this repository, tells you when one exists, and opens the release page in your browser when you click the button.
+
+### Removed
+- **Downloading and installing updates from inside the application**, together with the updater plugin, its signing key configuration and the signed updater artifacts that went with it. Nothing is downloaded or installed in the background.
+
+### 修改
+- **不再由程序自己安装更新。** 原来的更新插件指向上游仓库并使用上游的签名密钥，上游一旦发版就会被提示并覆盖安装到本分支。现在 PastePaw 只读取本仓库的最新 Release，有新版时提示你，点击按钮后打开浏览器里的发布页面。
+
+### 移除
+- **应用内下载并安装更新**，同时移除更新插件、签名密钥配置以及相应的签名产物。后台不会下载或安装任何东西。
+
 ## v1.6.0
 
 ### Added

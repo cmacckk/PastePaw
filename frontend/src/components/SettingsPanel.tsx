@@ -33,6 +33,9 @@ interface SettingsPanelProps {
 
 type Tab = 'general' | 'folders';
 
+const REPO_URL = 'https://github.com/cmacckk/PastePaw';
+const RELEASES_PAGE = `${REPO_URL}/releases/latest`;
+
 export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [settings, setSettings] = useState<Settings>(initialSettings);
@@ -349,17 +352,16 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
   const [isUpdating, setIsUpdating] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-  const handleDownloadAndInstall = async () => {
+  // The application never installs an update itself. It opens the release page
+  // and the user decides, so nothing here can replace this build with another
+  // one behind their back.
+  const handleOpenReleasePage = async () => {
     try {
-      setIsUpdating(true);
-      const dlToast = toast.loading(t('settings.downloadingUpdate', { defaultValue: 'Downloading & installing update...' }));
-      await invoke('install_update');
-      toast.dismiss(dlToast);
+      setShowUpdateModal(false);
+      await openUrl(RELEASES_PAGE);
     } catch (e) {
-      console.error('Update failed:', e);
-      toast.error(`Update failed: ${e}`);
-    } finally {
-      setIsUpdating(false);
+      console.error('Could not open the release page:', e);
+      toast.error(`Could not open the release page: ${e}`);
     }
   };
 
@@ -1105,7 +1107,7 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
         {/* Footer */}
         <div className="flex flex-col items-center gap-1 border-t border-border bg-background px-4 py-3 text-center">
           <button
-            onClick={() => openUrl('https://github.com/XueshiQiao/PastePaw').catch(console.error)}
+            onClick={() => openUrl(REPO_URL).catch(console.error)}
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             PastePaw {appVersion || '...'}
@@ -1162,18 +1164,11 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                 Close
               </button>
               <button
-                onClick={handleDownloadAndInstall}
-                disabled={isUpdating}
-                className="flex items-center gap-2 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-blue-500 hover:shadow disabled:opacity-50"
+                onClick={handleOpenReleasePage}
+                className="flex items-center gap-2 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-blue-500 hover:shadow"
               >
-                {isUpdating ? (
-                  <>
-                    <ArrowUpCircle size={16} className="animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  'Update Now'
-                )}
+                <ArrowUpCircle size={16} />
+                Open the release page
               </button>
             </div>
           </div>

@@ -1592,14 +1592,6 @@ pub async fn check_update_now(
     update_manager.check_for_updates(&app).await
 }
 
-#[tauri::command]
-pub async fn install_update(
-    app: AppHandle,
-    update_manager: tauri::State<'_, Arc<crate::updater::UpdateManager>>,
-) -> Result<(), String> {
-    update_manager.install_update(&app).await
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

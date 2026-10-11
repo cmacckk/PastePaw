@@ -11,7 +11,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create-release.outputs.id || steps.create-draft-release.outputs.id }}
+      release_id: ${{ steps.create-release.outputs.id || steps.create-draft-release.outputs.id }} # yamllint disable-line rule:line-length
       release_body: ${{ steps.changelog.outputs.body }}
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
         with:
           tag_name: draft-${{ github.sha }}
           name: 'Draft Build (${{ github.ref_name }} @ ${{ github.sha }})'
-          body: 'Test build from `${{ github.ref_name }}` at `${{ github.sha }}`'
+          body: 'Test build from `${{ github.ref_name }}` at `${{ github.sha }}`' # yamllint disable-line rule:line-length
           draft: true
           prerelease: true
 
@@ -89,7 +89,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }} # yamllint disable-line rule:line-length
 
       - name: Install frontend dependencies
         run: pnpm install
@@ -100,35 +100,15 @@ jobs:
         run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Check for the updater signing key
-        id: sign
-        shell: bash
-        env:
-          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: |
-          # Updater artifacts must be signed. A fork has no upstream key,
-          # so skip them instead of failing the whole build.
-          if [ -n "$SIGNING_KEY" ]; then
-            echo "args=" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::No signing key; skipping updater artifacts."
-            # Absolute: the action runs tauri from src-tauri, so a path
-            # relative to the repository root would not resolve.
-            CONFIG="$GITHUB_WORKSPACE/.github/tauri-no-updater-artifacts.json"
-            echo "args=--config $CONFIG" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }} # yamllint disable-line rule:line-length
         with:
           projectPath: src-tauri
           releaseId: ${{ needs.create-release.outputs.release_id }}
           releaseBody: ${{ needs.create-release.outputs.release_body }}
-          args: --target ${{ matrix.target }} ${{ steps.sign.outputs.args }}
+          args: --target ${{ matrix.target }}
 
       - name: Collect the portable build
         if: success()
