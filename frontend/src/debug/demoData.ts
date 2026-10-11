@@ -1,4 +1,4 @@
-import { ClipboardItem } from '../types';
+import { ClipboardItem, FolderItem } from '../types';
 
 function generateImage(label: string, color1: string, color2: string): string {
   const canvas = document.createElement('canvas');
@@ -25,11 +25,52 @@ function generateImage(label: string, color1: string, color2: string): string {
   return canvas.toDataURL('image/png');
 }
 
+/** Folder ids the demo clips are filed under. They only exist in demo mode. */
+export const DEMO_FOLDER_IDS = {
+  pinned: 'demo-f-pinned',
+  work: 'demo-f-work',
+  snippets: 'demo-f-snippets',
+  design: 'demo-f-design',
+} as const;
+
+/**
+ * Stand-in folders for demo mode. Nothing here is written to the database, so the
+ * folders a real install has are untouched and come back on `restore-actual-data`.
+ */
+export function generateDemoFolders(): FolderItem[] {
+  return [
+    { id: DEMO_FOLDER_IDS.pinned, name: 'Pinned', icon: null, color: null, is_system: true, item_count: 1 },
+    { id: DEMO_FOLDER_IDS.work, name: 'Work', icon: null, color: null, is_system: false, item_count: 2 },
+    { id: DEMO_FOLDER_IDS.snippets, name: 'Snippets', icon: null, color: null, is_system: false, item_count: 2 },
+    { id: DEMO_FOLDER_IDS.design, name: 'Design', icon: null, color: null, is_system: false, item_count: 1 },
+  ];
+}
+
 export function generateDemoClips(): ClipboardItem[] {
   const now = new Date();
   const ago = (minutes: number) => new Date(now.getTime() - minutes * 60000).toISOString();
 
   return [
+    {
+      id: 'demo-21',
+      clip_type: 'file',
+      // A file clip keeps its paths newline joined, exactly like a real capture.
+      content: [
+        'C:\\Projects\\pastepaw\\src-tauri\\src\\clipboard.rs',
+        'C:\\Projects\\pastepaw\\src-tauri\\src\\clipboard_formats.rs',
+        'C:\\Projects\\pastepaw\\src-tauri\\src\\retention.rs',
+        'C:\\Projects\\pastepaw\\src-tauri\\src\\export.rs',
+        'C:\\Projects\\pastepaw\\README.md',
+        'C:\\Projects\\pastepaw\\CHANGELOG.md',
+      ].join('\n'),
+      preview: 'clipboard.rs, clipboard_formats.rs, retention.rs, export.rs',
+      folder_id: null,
+      created_at: ago(1),
+      source_app: 'Explorer.EXE',
+      source_icon: null,
+      metadata: null,
+      title: 'Project files',
+    },
     {
       id: 'demo-1',
       clip_type: 'text',
@@ -37,11 +78,29 @@ export function generateDemoClips(): ClipboardItem[] {
         'PastePaw is a beautiful clipboard history manager for Windows, built with Rust + Tauri + React + TypeScript.',
       preview:
         'PastePaw is a beautiful clipboard history manager for Windows, built with Rust + Tauri + React + TypeScript.',
-      folder_id: null,
-      created_at: ago(1),
+      folder_id: DEMO_FOLDER_IDS.pinned,
+      created_at: ago(2),
       source_app: 'chrome.exe',
       source_icon: null,
       metadata: null,
+    },
+    {
+      id: 'demo-23',
+      clip_type: 'text',
+      // Rich text is stored as a text clip plus its HTML and RTF alternates, so the
+      // card reads like any other text card. Pasting into Word keeps the formatting.
+      content: `Release notes for v1.6.0
+
+Rich text keeps its HTML
+and RTF, so pasting into
+Word stays formatted.`,
+      preview: 'Release notes — PastePaw v1.6.0',
+      folder_id: null,
+      created_at: ago(3),
+      source_app: 'WINWORD.EXE',
+      source_icon: null,
+      metadata: null,
+      title: 'Rich text sample',
     },
     {
       id: 'demo-2',
@@ -49,7 +108,7 @@ export function generateDemoClips(): ClipboardItem[] {
       content: generateImage('PastePaw — Dark Theme', '#1e1b4b', '#4c1d95'),
       preview: '',
       folder_id: null,
-      created_at: ago(3),
+      created_at: ago(4),
       source_app: 'Figma.exe',
       source_icon: null,
       metadata: JSON.stringify({ size_bytes: 184320 }),
@@ -59,8 +118,8 @@ export function generateDemoClips(): ClipboardItem[] {
       clip_type: 'image',
       content: generateImage('PastePaw — Light Theme', '#dbeafe', '#6366f1'),
       preview: '',
-      folder_id: null,
-      created_at: ago(5),
+      folder_id: DEMO_FOLDER_IDS.design,
+      created_at: ago(6),
       source_app: 'Figma.exe',
       source_icon: null,
       metadata: JSON.stringify({ size_bytes: 201480 }),
@@ -70,20 +129,33 @@ export function generateDemoClips(): ClipboardItem[] {
       clip_type: 'text',
       content: `pnpm install\ncargo install tauri-cli\npnpm tauri dev`,
       preview: 'pnpm install\ncargo install tauri-cli\npnpm tauri dev',
-      folder_id: null,
+      folder_id: DEMO_FOLDER_IDS.work,
       created_at: ago(8),
       source_app: 'WindowsTerminal.exe',
       source_icon: null,
       metadata: null,
+      title: 'Dev setup',
     },
     {
       id: 'demo-5',
       clip_type: 'text',
-      content: `Ctrl+Shift+V  Toggle window\nCtrl+F        Focus search\nEscape        Close / clear search\nEnter         Paste selected\nDelete        Delete selected\nP             Pin / Unpin`,
-      preview: 'Ctrl+Shift+V  Toggle window\nCtrl+F  Focus search...',
-      folder_id: null,
+      content: `Ctrl+Shift+V  Show / hide\nCtrl+F        Search\nCtrl+1..9     Paste nth\nEnter         Paste\nP             Pin / Unpin`,
+      preview: 'Ctrl+Shift+V  Toggle window\nCtrl+1..9  Paste the nth item...',
+      folder_id: DEMO_FOLDER_IDS.snippets,
       created_at: ago(12),
       source_app: 'Code.exe',
+      source_icon: null,
+      metadata: null,
+      title: 'Shortcuts',
+    },
+    {
+      id: 'demo-22',
+      clip_type: 'file',
+      content: 'D:\\Screenshots\\PastePaw — dark theme.png',
+      preview: 'PastePaw — dark theme.png',
+      folder_id: null,
+      created_at: ago(14),
+      source_app: 'Snipaste.exe',
       source_icon: null,
       metadata: null,
     },
@@ -113,8 +185,8 @@ export function generateDemoClips(): ClipboardItem[] {
     {
       id: 'demo-10',
       clip_type: 'text',
-      content: `git tag v1.3.3\ngit push origin refs/heads/main\ngit push origin refs/tags/v1.3.3`,
-      preview: 'git tag v1.3.3\ngit push origin refs/heads/main',
+      content: `git tag v1.6.0\ngit push origin refs/heads/main\ngit push origin refs/tags/v1.6.0`,
+      preview: 'git tag v1.6.0\ngit push origin refs/heads/main',
       folder_id: null,
       created_at: ago(35),
       source_app: 'WindowsTerminal.exe',
@@ -126,9 +198,9 @@ export function generateDemoClips(): ClipboardItem[] {
       id: 'demo-12',
       clip_type: 'text',
       content:
-        'Hi team,\n\nPlease find the latest build of PastePaw v1.3.3 attached. Key changes include refined UI layout, tighter card spacing, and a new dark-mode tray icon.\n\nBest,\nXueshi',
-      preview: 'Hi team, Please find the latest build of PastePaw v1.3.3...',
-      folder_id: null,
+        'Hi team,\n\nPlease find the latest build of PastePaw v1.6.0 attached. Key changes include file and rich-text clips, history retention, folder export and import, pinning, and a smoother window animation.\n\nBest,\nXueshi',
+      preview: 'Hi team, Please find the latest build of PastePaw v1.6.0...',
+      folder_id: DEMO_FOLDER_IDS.work,
       created_at: ago(50),
       source_app: 'OUTLOOK.EXE',
       source_icon: null,
@@ -172,13 +244,14 @@ export function generateDemoClips(): ClipboardItem[] {
     {
       id: 'demo-14',
       clip_type: 'text',
-      content: `## PastePaw\n\nA **beautiful** clipboard history manager for Windows.\n\n- Built with Rust + Tauri\n- 100% local storage\n- AI powered actions\n\n> "The best clipboard manager for Windows" `,
+      content: `## PastePaw\n\nA **beautiful** clipboard history manager for Windows.\n\n- Built with Rust + Tauri\n- 100% local storage\n- Your history, your machine\n\n> "The best clipboard manager for Windows" `,
       preview: '## PastePaw — A beautiful clipboard history manager...',
-      folder_id: null,
+      folder_id: DEMO_FOLDER_IDS.snippets,
       created_at: ago(75),
       source_app: 'Obsidian.exe',
       source_icon: null,
       metadata: null,
+      title: 'Release notes draft',
     },
     {
       id: 'demo-16',

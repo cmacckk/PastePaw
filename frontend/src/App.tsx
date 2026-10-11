@@ -19,7 +19,7 @@ import { Toaster, toast } from 'sonner';
 import { useAutoUpdater } from './hooks/useAutoUpdater';
 import { useTypography } from './hooks/useTypography';
 import { LAYOUT } from './constants';
-import { generateDemoClips } from './debug/demoData';
+import { generateDemoClips, generateDemoFolders } from './debug/demoData';
 
 function App() {
   const [clips, setClips] = useState<AppClipboardItem[]>([]);
@@ -139,17 +139,21 @@ function App() {
       setSettings(event.payload);
     });
 
-    // Debug only: load demo clips / restore actual data when triggered from settings
+    // Debug only: load demo clips / restore actual data when triggered from settings.
+    // Demo mode swaps in its own folders as well, so nothing a real install has is on
+    // screen, and restore puts the real ones back.
     const unlistenDemo = import.meta.env.DEV
       ? Promise.all([
           listen('load-demo-data', () => {
             const demoClips = generateDemoClips();
             setClips(demoClips);
+            setFolders(generateDemoFolders());
             resetToFirstClip(demoClips);
             setHasMore(false);
           }),
           listen('restore-actual-data', () => {
             loadClips(selectedFolderRef.current, false, '');
+            loadFolders();
           }),
         ])
       : Promise.resolve([() => {}, () => {}]);
