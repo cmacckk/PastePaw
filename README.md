@@ -23,9 +23,8 @@ A beautiful clipboard history manager for Windows, built with Rust + Tauri + Rea
 >
 > This repository is a fork of [XueshiQiao/PastePaw](https://github.com/XueshiQiao/PastePaw),
 > kept Windows-only. Everything in this README describes **this** fork, whose current release is
-> **v1.6.0**. Upstream maintains its own release line and the macOS build on the
-> [App Store](https://apps.apple.com/us/app/vigilclip/id6759132043?mt=12) — see
-> [vigilclip.com](https://vigilclip.com/). Both are GPL-3.0.
+> **v2.0.0**. Upstream maintains its own release line and the macOS build on the
+> [App Store](https://apps.apple.com/us/app/pastepaw/id6759132043?mt=12). Both are GPL-3.0.
 
 ## What's New in v2.0.0
 

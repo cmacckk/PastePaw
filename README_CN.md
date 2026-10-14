@@ -22,9 +22,9 @@
 > ## 关于本分支
 >
 > 本仓库是 [XueshiQiao/PastePaw](https://github.com/XueshiQiao/PastePaw) 的 fork，仅维护 Windows 平台。
-> 本 README 描述的是**本分支**，当前版本为 **v1.6.0**。上游维护自己的发布线，以及
-> [App Store](https://apps.apple.com/us/app/vigilclip/id6759132043?mt=12) 上的 macOS 版本，
-> 详见 [vigilclip.com](https://vigilclip.com/)。两者均为 GPL-3.0。
+> 本 README 描述的是**本分支**，当前版本为 **v2.0.0**。上游维护自己的发布线，以及
+> [App Store](https://apps.apple.com/us/app/pastepaw/id6759132043?mt=12) 上的 macOS 版本。
+> 两者均为 GPL-3.0。
 
 ## v2.0.0 更新内容
 
