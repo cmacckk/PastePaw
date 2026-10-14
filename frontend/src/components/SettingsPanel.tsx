@@ -8,6 +8,10 @@ import {
   Folder as FolderIcon,
   MoreHorizontal,
   ArrowUpCircle,
+  Palette,
+  SlidersHorizontal,
+  Database,
+  ShieldCheck,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../hooks/useTheme';
@@ -32,7 +36,7 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'general' | 'folders';
+type Tab = 'general' | 'appearance' | 'behavior' | 'folders' | 'data' | 'privacy';
 
 const REPO_URL = 'https://github.com/cmacckk/VigilClip';
 const RELEASES_PAGE = `${REPO_URL}/releases/latest`;
@@ -446,9 +450,10 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
           <div className="w-48 flex-shrink-0 border-r border-border bg-card/50 p-2">
             <div className="flex flex-col gap-1">
               <button
+                key="general"
                 onClick={() => setActiveTab('general')}
                 className={clsx(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   activeTab === 'general'
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
@@ -458,9 +463,36 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                 {t('settings.general')}
               </button>
               <button
+                key="appearance"
+                onClick={() => setActiveTab('appearance')}
+                className={clsx(
+                  'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  activeTab === 'appearance'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                )}
+              >
+                <Palette size={16} />
+                {t('settings.groupAppearance')}
+              </button>
+              <button
+                key="behavior"
+                onClick={() => setActiveTab('behavior')}
+                className={clsx(
+                  'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  activeTab === 'behavior'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                )}
+              >
+                <SlidersHorizontal size={16} />
+                {t('settings.groupBehavior')}
+              </button>
+              <button
+                key="folders"
                 onClick={() => setActiveTab('folders')}
                 className={clsx(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   activeTab === 'folders'
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
@@ -469,218 +501,89 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                 <FolderIcon size={16} />
                 {t('settings.folders')}
               </button>
+              <button
+                key="data"
+                onClick={() => setActiveTab('data')}
+                className={clsx(
+                  'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  activeTab === 'data'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                )}
+              >
+                <Database size={16} />
+                {t('settings.groupData')}
+              </button>
+              <button
+                key="privacy"
+                onClick={() => setActiveTab('privacy')}
+                className={clsx(
+                  'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  activeTab === 'privacy'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                )}
+              >
+                <ShieldCheck size={16} />
+                {t('settings.groupPrivacy')}
+              </button>
             </div>
           </div>
 
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="mx-auto max-w-2xl space-y-8">
-              {/* --- GENERAL TAB --- */}
               {activeTab === 'general' && (
-                <>
-                  <section className="space-y-4">
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      {t('settings.appearanceBehavior')}
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.theme')}</span>
-                        </label>
-                        <Select
-                          value={settings.theme}
-                          onChange={handleThemeChange}
-                          options={[
-                            { value: 'dark', label: t('settings.themeDark') },
-                            { value: 'light', label: t('settings.themeLight') },
-                            { value: 'system', label: t('settings.themeSystem') },
-                          ]}
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.language')}</span>
-                        </label>
-                        <Select
-                          value={settings.language || 'en'}
-                          onChange={handleLanguageChange}
-                          options={[
-                            { value: 'de', label: 'Deutsch' },
-                            { value: 'en', label: 'English' },
-                            { value: 'fr', label: 'Francais' },
-                            { value: 'ja', label: '日本語' },
-                            { value: 'zh', label: '中文' },
-                          ]}
-                        />
-                      </div>
+                <section className="space-y-1">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('settings.general')}
+                  </h3>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.theme')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.theme}
+                        onChange={handleThemeChange}
+                        options={[
+                          { value: 'dark', label: t('settings.themeDark') },
+                          { value: 'light', label: t('settings.themeLight') },
+                          { value: 'system', label: t('settings.themeSystem') },
+                        ]}
+                      />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.windowEffect')}</span>
-                        </label>
-                        <Select
-                          value={settings.mica_effect || 'clear'}
-                          onChange={(val) => updateSetting('mica_effect', val)}
-                          options={[
-                            { value: 'mica_alt', label: 'Mica Alt' },
-                            { value: 'mica', label: 'Mica' },
-                            { value: 'clear', label: 'Clear' },
-                          ]}
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">
-                            {t('settings.displaySize')}
-                          </span>
-                        </label>
-                        <Select
-                          value={settings.card_size || 'large'}
-                          onChange={(val) => updateSetting('card_size', val)}
-                          options={[
-                            { value: 'large', label: t('settings.displaySizeLarge') },
-                            { value: 'medium', label: t('settings.displaySizeCompact') },
-                          ]}
-                        />
-                      </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.language')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.language || 'en'}
+                        onChange={handleLanguageChange}
+                        options={[
+                          { value: 'de', label: 'Deutsch' },
+                          { value: 'en', label: 'English' },
+                          { value: 'fr', label: 'Francais' },
+                          { value: 'ja', label: '日本語' },
+                          { value: 'zh', label: '中文' },
+                        ]}
+                      />
                     </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-accent/20 p-3">
-                      <div>
-                        <span className="text-sm font-medium">
-                          {t('settings.floatAboveTaskbar')}
-                        </span>
-                        <p className="text-xs text-muted-foreground">
-                          {t('settings.floatAboveTaskbarDesc')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          updateSetting(
-                            'float_above_taskbar',
-                            !(settings.float_above_taskbar ?? true)
-                          )
-                        }
-                        className={`h-6 w-11 rounded-full transition-colors ${(settings.float_above_taskbar ?? true) ? 'bg-primary' : 'bg-accent'}`}
-                      >
-                        <span
-                          className={`block h-4 w-4 rounded-full bg-white transition-transform ${(settings.float_above_taskbar ?? true) ? 'translate-x-6' : 'translate-x-1'}`}
-                        />
-                      </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.displaySize')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.card_size || 'large'}
+                        onChange={(val) => updateSetting('card_size', val)}
+                        options={[
+                          { value: 'large', label: t('settings.displaySizeLarge') },
+                          { value: 'medium', label: t('settings.displaySizeCompact') },
+                        ]}
+                      />
                     </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-accent/20 p-3">
-                      <div>
-                        <span className="text-sm font-medium">{t('settings.roundCorners')}</span>
-                        <p className="text-xs text-muted-foreground">
-                          {t('settings.roundCornersDesc')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          updateSetting('round_corners', !(settings.round_corners ?? false))
-                        }
-                        className={`h-6 w-11 rounded-full transition-colors ${(settings.round_corners ?? false) ? 'bg-primary' : 'bg-accent'}`}
-                      >
-                        <span
-                          className={`block h-4 w-4 rounded-full bg-white transition-transform ${(settings.round_corners ?? false) ? 'translate-x-6' : 'translate-x-1'}`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-accent/20 p-3">
-                      <div>
-                        <span className="text-sm font-medium">
-                          {t('settings.startupWithWindows')}
-                        </span>
-                        <p className="text-xs text-muted-foreground">
-                          {t('settings.startupWithWindowsDesc')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          updateSetting('startup_with_windows', !settings.startup_with_windows)
-                        }
-                        className={`h-6 w-11 rounded-full transition-colors ${settings.startup_with_windows ? 'bg-primary' : 'bg-accent'}`}
-                      >
-                        <div
-                          className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${settings.startup_with_windows ? 'translate-x-5' : 'translate-x-0.5'}`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-accent/20 p-3">
-                      <div>
-                        <span className="text-sm font-medium">{t('settings.autoPaste')}</span>
-                        <p className="text-xs text-muted-foreground">
-                          {t('settings.autoPasteDesc')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => updateSetting('auto_paste', !settings.auto_paste)}
-                        className={`h-6 w-11 rounded-full transition-colors ${settings.auto_paste ? 'bg-primary' : 'bg-accent'}`}
-                      >
-                        <div
-                          className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${settings.auto_paste ? 'translate-x-5' : 'translate-x-0.5'}`}
-                        />
-                      </button>
-                    </div>
-
-                    {settings.auto_paste && (
-                      <div className="space-y-3 rounded-lg border border-border bg-accent/20 p-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.pasteMethod')}</span>
-                          <p className="text-xs text-muted-foreground">
-                            {t('settings.pasteMethodDesc')}
-                          </p>
-                        </label>
-                        <Select
-                          value={settings.paste_method || 'shift_insert'}
-                          onChange={(val) => updateSetting('paste_method', val)}
-                          options={[
-                            { value: 'shift_insert', label: t('settings.pasteMethodShiftInsert') },
-                            { value: 'ctrl_v', label: t('settings.pasteMethodCtrlV') },
-                          ]}
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between rounded-lg border border-border bg-accent/20 p-3">
-                      <div>
-                        <span className="text-sm font-medium">
-                          {t('settings.ignoreGhostClips')}
-                        </span>
-                        <p className="text-xs text-muted-foreground">
-                          {t('settings.ignoreGhostClipsDesc')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          updateSetting('ignore_ghost_clips', !settings.ignore_ghost_clips)
-                        }
-                        className={`h-6 w-11 rounded-full transition-colors ${settings.ignore_ghost_clips ? 'bg-primary' : 'bg-accent'}`}
-                      >
-                        <div
-                          className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${settings.ignore_ghost_clips ? 'translate-x-5' : 'translate-x-0.5'}`}
-                        />
-                      </button>
-                    </div>
-                  </section>
-
-                  <section className="space-y-4">
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      {t('settings.typography')}
-                    </h3>
-
-                    <div className="space-y-3">
-                      <label className="block">
-                        <span className="text-sm font-medium">{t('settings.fontScale')}</span>
-                      </label>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.fontScale')}</span>
+                    <div className="w-56 shrink-0">
                       <Select
                         value={settings.font_scale || 'default'}
                         onChange={(val) => updateSetting('font_scale', val)}
@@ -691,120 +594,279 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                         ]}
                       />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.uiFont')}</span>
-                        </label>
-                        <Select
-                          value={settings.ui_font_family || ''}
-                          onChange={(val) => updateSetting('ui_font_family', val)}
-                          options={fontOptions(
-                            installedFonts,
-                            settings.ui_font_family || '',
-                            t('settings.fontDefault')
-                          )}
-                        />
+                  </div>
+                </section>
+              )}
+              {activeTab === 'appearance' && (
+                <section className="space-y-1">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('settings.groupAppearance')}
+                  </h3>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.windowEffect')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.mica_effect || 'clear'}
+                        onChange={(val) => updateSetting('mica_effect', val)}
+                        options={[
+                          { value: 'mica_alt', label: 'Mica Alt' },
+                          { value: 'mica', label: 'Mica' },
+                          { value: 'clear', label: 'Clear' },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <div>
+                      <span className="text-sm font-medium">{t('settings.floatAboveTaskbar')}</span>
+                      <p className="text-xs text-muted-foreground">
+                        {t('settings.floatAboveTaskbarDesc')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateSetting(
+                          'float_above_taskbar',
+                          !(settings.float_above_taskbar ?? true)
+                        )
+                      }
+                      className={`h-6 w-11 rounded-full transition-colors ${(settings.float_above_taskbar ?? true) ? 'bg-primary' : 'bg-accent'}`}
+                    >
+                      <span
+                        className={`block h-4 w-4 rounded-full bg-white transition-transform ${(settings.float_above_taskbar ?? true) ? 'translate-x-6' : 'translate-x-1'}`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <div>
+                      <span className="text-sm font-medium">{t('settings.roundCorners')}</span>
+                      <p className="text-xs text-muted-foreground">
+                        {t('settings.roundCornersDesc')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateSetting('round_corners', !(settings.round_corners ?? false))
+                      }
+                      className={`h-6 w-11 rounded-full transition-colors ${(settings.round_corners ?? false) ? 'bg-primary' : 'bg-accent'}`}
+                    >
+                      <span
+                        className={`block h-4 w-4 rounded-full bg-white transition-transform ${(settings.round_corners ?? false) ? 'translate-x-6' : 'translate-x-1'}`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.uiFont')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.ui_font_family || ''}
+                        onChange={(val) => updateSetting('ui_font_family', val)}
+                        options={fontOptions(
+                          installedFonts,
+                          settings.ui_font_family || '',
+                          t('settings.fontDefault')
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.uiFontWeight')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.ui_font_weight || '400'}
+                        onChange={(val) => updateSetting('ui_font_weight', val)}
+                        options={[
+                          { value: '300', label: t('settings.fontWeightLight') },
+                          { value: '400', label: t('settings.fontWeightNormal') },
+                          { value: '500', label: t('settings.fontWeightMedium') },
+                          { value: '600', label: t('settings.fontWeightSemibold') },
+                          { value: '700', label: t('settings.fontWeightBold') },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.contentFont')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.content_font_family || ''}
+                        onChange={(val) => updateSetting('content_font_family', val)}
+                        options={fontOptions(
+                          installedFonts,
+                          settings.content_font_family || '',
+                          t('settings.fontDefaultMono')
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <span className="text-sm font-medium">{t('settings.contentFontWeight')}</span>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={settings.content_font_weight || '400'}
+                        onChange={(val) => updateSetting('content_font_weight', val)}
+                        options={[
+                          { value: '300', label: t('settings.fontWeightLight') },
+                          { value: '400', label: t('settings.fontWeightNormal') },
+                          { value: '500', label: t('settings.fontWeightMedium') },
+                          { value: '600', label: t('settings.fontWeightSemibold') },
+                          { value: '700', label: t('settings.fontWeightBold') },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+              {activeTab === 'behavior' && (
+                <section className="space-y-1">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('settings.groupBehavior')}
+                  </h3>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <div>
+                      <span className="text-sm font-medium">
+                        {t('settings.startupWithWindows')}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {t('settings.startupWithWindowsDesc')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        updateSetting('startup_with_windows', !settings.startup_with_windows)
+                      }
+                      className={`h-6 w-11 rounded-full transition-colors ${settings.startup_with_windows ? 'bg-primary' : 'bg-accent'}`}
+                    >
+                      <div
+                        className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${settings.startup_with_windows ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                    <div>
+                      <span className="text-sm font-medium">{t('settings.autoPaste')}</span>
+                      <p className="text-xs text-muted-foreground">{t('settings.autoPasteDesc')}</p>
+                    </div>
+                    <button
+                      onClick={() => updateSetting('auto_paste', !settings.auto_paste)}
+                      className={`h-6 w-11 rounded-full transition-colors ${settings.auto_paste ? 'bg-primary' : 'bg-accent'}`}
+                    >
+                      <div
+                        className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${settings.auto_paste ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                  {settings.auto_paste && (
+                    <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{t('settings.pasteMethod')}</div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('settings.pasteMethodDesc')}
+                        </p>
                       </div>
-
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.uiFontWeight')}</span>
-                        </label>
+                      <div className="w-56 shrink-0">
                         <Select
-                          value={settings.ui_font_weight || '400'}
-                          onChange={(val) => updateSetting('ui_font_weight', val)}
+                          value={settings.paste_method || 'shift_insert'}
+                          onChange={(val) => updateSetting('paste_method', val)}
                           options={[
-                            { value: '300', label: t('settings.fontWeightLight') },
-                            { value: '400', label: t('settings.fontWeightNormal') },
-                            { value: '500', label: t('settings.fontWeightMedium') },
-                            { value: '600', label: t('settings.fontWeightSemibold') },
-                            { value: '700', label: t('settings.fontWeightBold') },
+                            { value: 'shift_insert', label: t('settings.pasteMethodShiftInsert') },
+                            { value: 'ctrl_v', label: t('settings.pasteMethodCtrlV') },
                           ]}
                         />
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.contentFont')}</span>
-                        </label>
-                        <Select
-                          value={settings.content_font_family || ''}
-                          onChange={(val) => updateSetting('content_font_family', val)}
-                          options={fontOptions(
-                            installedFonts,
-                            settings.content_font_family || '',
-                            t('settings.fontDefaultMono')
-                          )}
-                        />
+                  )}
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      {t('settings.shortcuts')}
+                    </h3>
+                    <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{t('settings.hotkey')}</div>
+                        <p className="text-xs text-muted-foreground">{t('settings.hotkeyDesc')}</p>
                       </div>
-
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">
-                            {t('settings.contentFontWeight')}
-                          </span>
-                        </label>
-                        <Select
-                          value={settings.content_font_weight || '400'}
-                          onChange={(val) => updateSetting('content_font_weight', val)}
-                          options={[
-                            { value: '300', label: t('settings.fontWeightLight') },
-                            { value: '400', label: t('settings.fontWeightNormal') },
-                            { value: '500', label: t('settings.fontWeightMedium') },
-                            { value: '600', label: t('settings.fontWeightSemibold') },
-                            { value: '700', label: t('settings.fontWeightBold') },
-                          ]}
-                        />
+                      <div className="w-56 shrink-0">
+                        {isRecordingMode ? (
+                          <div className="space-y-2">
+                            <div className="flex w-full items-center gap-2 rounded-lg border border-primary bg-input px-3 py-2 text-sm ring-2 ring-primary">
+                              <span className="animate-pulse text-primary">
+                                {shortcut.length > 0
+                                  ? formatHotkey(shortcut)
+                                  : savedShortcut.length > 0
+                                    ? formatHotkey(savedShortcut)
+                                    : t('settings.hotkeyRecording')}
+                              </span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleSaveHotkey}
+                                disabled={savedShortcut.length === 0}
+                                className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground disabled:opacity-50"
+                              >
+                                {t('common.save')}
+                              </button>
+                              <button
+                                onClick={handleCancelRecording}
+                                className="rounded bg-muted px-3 py-1 text-xs text-muted-foreground"
+                              >
+                                {t('common.cancel')}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleStartRecording}
+                            className="flex w-full items-center gap-2 rounded-lg border border-border bg-input px-3 py-2 text-sm transition-colors hover:border-primary"
+                          >
+                            <span className="rounded bg-accent px-2 py-0.5 font-mono text-xs font-medium">
+                              {settings.hotkey}
+                            </span>
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    <p className="text-xs text-muted-foreground">{t('settings.typographyHint')}</p>
                   </section>
-
+                </section>
+              )}
+              {activeTab === 'data' && (
+                <section className="space-y-1">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('settings.groupData')}
+                  </h3>
                   <section className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">
                       {t('settings.historyRetention')}
                     </h3>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.keepHistory')}</span>
-                        </label>
-                        <Select
-                          value={String(settings.auto_delete_days ?? 30)}
-                          onChange={(val) => updateSetting('auto_delete_days', Number(val))}
-                          options={[
-                            { value: '1', label: t('settings.retentionDays', { count: 1 }) },
-                            { value: '7', label: t('settings.retentionDays', { count: 7 }) },
-                            { value: '30', label: t('settings.retentionDays', { count: 30 }) },
-                            { value: '90', label: t('settings.retentionDays', { count: 90 }) },
-                            { value: '365', label: t('settings.retentionDays', { count: 365 }) },
-                            { value: '0', label: t('settings.retentionForever') },
-                          ]}
-                        />
+                    <div className="flex flex-col">
+                      <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                        <span className="text-sm font-medium">{t('settings.keepHistory')}</span>
+                        <div className="w-56 shrink-0">
+                          <Select
+                            value={String(settings.auto_delete_days ?? 30)}
+                            onChange={(val) => updateSetting('auto_delete_days', Number(val))}
+                            options={[
+                              { value: '1', label: t('settings.retentionDays', { count: 1 }) },
+                              { value: '7', label: t('settings.retentionDays', { count: 7 }) },
+                              { value: '30', label: t('settings.retentionDays', { count: 30 }) },
+                              { value: '90', label: t('settings.retentionDays', { count: 90 }) },
+                              { value: '365', label: t('settings.retentionDays', { count: 365 }) },
+                              { value: '0', label: t('settings.retentionForever') },
+                            ]}
+                          />
+                        </div>
                       </div>
-
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="text-sm font-medium">{t('settings.maxItems')}</span>
-                        </label>
+                      <div className="flex items-center justify-between gap-6 border-b border-border/60 py-3 last:border-b-0">
+                        <span className="text-sm font-medium">{t('settings.maxItems')}</span>
                         <input
                           type="number"
                           min={0}
                           value={settings.max_items ?? 1000}
                           onChange={(e) => updateSetting('max_items', Number(e.target.value))}
-                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                          className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
                       </div>
                     </div>
-
                     <p className="text-xs text-muted-foreground">{t('settings.retentionHint')}</p>
-
                     <button
                       onClick={handlePruneNow}
                       className="rounded-lg border border-border bg-accent/20 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/40"
@@ -812,16 +874,13 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                       {t('settings.pruneNow')}
                     </button>
                   </section>
-
                   <section className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">
                       {t('settings.dataPortability')}
                     </h3>
-
                     <p className="text-xs text-muted-foreground">
                       {t('settings.dataPortabilityHint')}
                     </p>
-
                     <div className="flex gap-2">
                       <button
                         onClick={handleExportFolders}
@@ -837,56 +896,43 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                       </button>
                     </div>
                   </section>
-
                   <section className="space-y-4">
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      {t('settings.shortcuts')}
+                    <h3 className="text-sm font-medium text-red-500/80">
+                      {t('settings.dataManagement')}
                     </h3>
-                    <div className="space-y-3">
-                      <label className="block">
-                        <span className="text-sm font-medium">{t('settings.hotkey')}</span>
-                        <p className="text-xs text-muted-foreground">{t('settings.hotkeyDesc')}</p>
-                      </label>
-                      {isRecordingMode ? (
-                        <div className="space-y-2">
-                          <div className="flex w-full items-center gap-2 rounded-lg border border-primary bg-input px-3 py-2 text-sm ring-2 ring-primary">
-                            <span className="animate-pulse text-primary">
-                              {shortcut.length > 0
-                                ? formatHotkey(shortcut)
-                                : savedShortcut.length > 0
-                                  ? formatHotkey(savedShortcut)
-                                  : t('settings.hotkeyRecording')}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={handleSaveHotkey}
-                              disabled={savedShortcut.length === 0}
-                              className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground disabled:opacity-50"
-                            >
-                              {t('common.save')}
-                            </button>
-                            <button
-                              onClick={handleCancelRecording}
-                              className="rounded bg-muted px-3 py-1 text-xs text-muted-foreground"
-                            >
-                              {t('common.cancel')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handleStartRecording}
-                          className="flex w-full items-center gap-2 rounded-lg border border-border bg-input px-3 py-2 text-sm transition-colors hover:border-primary"
-                        >
-                          <span className="rounded bg-accent px-2 py-0.5 font-mono text-xs font-medium">
-                            {settings.hotkey}
-                          </span>
-                        </button>
-                      )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={confirmClearHistory}
+                        className="btn border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                      >
+                        <Trash2 size={16} className="mr-2" />
+                        {t('settings.clearHistory')}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const count = await invoke<number>('remove_duplicate_clips');
+                            toast.success(t('settings.removeDuplicatesSuccess', { count }));
+                            const newSize = await invoke<number>('get_clipboard_history_size');
+                            setHistorySize(newSize);
+                          } catch (error) {
+                            console.error(error);
+                            toast.error(`Failed to remove duplicates: ${error}`);
+                          }
+                        }}
+                        className="btn btn-secondary text-xs"
+                      >
+                        {t('settings.removeDuplicates')}
+                      </button>
                     </div>
                   </section>
-
+                </section>
+              )}
+              {activeTab === 'privacy' && (
+                <section className="space-y-1">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('settings.groupPrivacy')}
+                  </h3>
                   <section className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">
                       {t('settings.privacyExceptions')}
@@ -898,7 +944,6 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                           {t('settings.ignoredAppsDesc')}
                         </p>
                       </label>
-
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -924,7 +969,6 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                           <Plus size={16} />
                         </button>
                       </div>
-
                       <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                         {ignoredApps.length === 0 ? (
                           <div className="rounded-lg border border-dashed border-border p-4 text-center">
@@ -951,143 +995,110 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                       </div>
                     </div>
                   </section>
-
+                </section>
+              )}
+              {activeTab === 'folders' && (
+                <section className="space-y-1">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('settings.folders')}
+                  </h3>
                   <section className="space-y-4">
-                    <h3 className="text-sm font-medium text-red-500/80">
-                      {t('settings.dataManagement')}
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      {t('settings.manageFolders')}
                     </h3>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder={t('settings.newFolderPlaceholder')}
+                        className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                      />
                       <button
-                        onClick={confirmClearHistory}
-                        className="btn border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                        onClick={handleCreateFolder}
+                        disabled={!newFolderName.trim()}
+                        className="btn btn-secondary px-3"
                       >
-                        <Trash2 size={16} className="mr-2" />
-                        {t('settings.clearHistory')}
-                      </button>
-
-                      <button
-                        onClick={async () => {
-                          try {
-                            const count = await invoke<number>('remove_duplicate_clips');
-                            toast.success(t('settings.removeDuplicatesSuccess', { count }));
-                            const newSize = await invoke<number>('get_clipboard_history_size');
-                            setHistorySize(newSize);
-                          } catch (error) {
-                            console.error(error);
-                            toast.error(`Failed to remove duplicates: ${error}`);
-                          }
-                        }}
-                        className="btn btn-secondary text-xs"
-                      >
-                        {t('settings.removeDuplicates')}
+                        <Plus size={16} className="mr-1" />
+                        {t('settings.add')}
                       </button>
                     </div>
-                  </section>
-                </>
-              )}
-
-              {/* --- AI PROCESSING TAB --- */}
-
-              {/* --- FOLDERS TAB --- */}
-              {activeTab === 'folders' && (
-                <section className="space-y-4">
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    {t('settings.manageFolders')}
-                  </h3>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      placeholder={t('settings.newFolderPlaceholder')}
-                      className="flex-1 rounded-lg border border-border bg-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-                    />
-                    <button
-                      onClick={handleCreateFolder}
-                      disabled={!newFolderName.trim()}
-                      className="btn btn-secondary px-3"
-                    >
-                      <Plus size={16} className="mr-1" />
-                      {t('settings.add')}
-                    </button>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    {folders.filter((f) => !f.is_system).length === 0 ? (
-                      <p className="rounded-lg border border-dashed border-border py-4 text-center text-xs text-muted-foreground">
-                        {t('settings.noFolders')}
-                      </p>
-                    ) : (
-                      folders
-                        .filter((f) => !f.is_system)
-                        .map((folder) => (
-                          <div
-                            key={folder.id}
-                            className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
-                          >
-                            {editingFolderId === folder.id ? (
-                              <div className="flex flex-1 items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={renameValue}
-                                  onChange={(e) => setRenameValue(e.target.value)}
-                                  className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') saveRenameFolder();
-                                    if (e.key === 'Escape') setEditingFolderId(null);
-                                  }}
-                                />
-                                <button
-                                  onClick={saveRenameFolder}
-                                  className="text-xs text-primary hover:underline"
-                                >
-                                  {t('common.save')}
-                                </button>
-                                <button
-                                  onClick={() => setEditingFolderId(null)}
-                                  className="text-xs text-muted-foreground hover:underline"
-                                >
-                                  {t('common.cancel')}
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-center gap-3">
-                                  <FolderIcon size={16} className="text-blue-400" />
-                                  <span className="text-sm font-medium">
-                                    {folder.is_system ? t('folders.pinned') : folder.name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    ({folder.item_count} items)
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
+                    <div className="mt-4 space-y-2">
+                      {folders.filter((f) => !f.is_system).length === 0 ? (
+                        <p className="rounded-lg border border-dashed border-border py-4 text-center text-xs text-muted-foreground">
+                          {t('settings.noFolders')}
+                        </p>
+                      ) : (
+                        folders
+                          .filter((f) => !f.is_system)
+                          .map((folder) => (
+                            <div
+                              key={folder.id}
+                              className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
+                            >
+                              {editingFolderId === folder.id ? (
+                                <div className="flex flex-1 items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveRenameFolder();
+                                      if (e.key === 'Escape') setEditingFolderId(null);
+                                    }}
+                                  />
                                   <button
-                                    onClick={() => startRenameFolder(folder)}
-                                    className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                                    title="Rename"
+                                    onClick={saveRenameFolder}
+                                    className="text-xs text-primary hover:underline"
                                   >
-                                    <MoreHorizontal size={14} />
+                                    {t('common.save')}
                                   </button>
-                                  {!folder.is_system && (
-                                    <button
-                                      onClick={() => handleDeleteFolder(folder.id)}
-                                      className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                      title="Delete"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => setEditingFolderId(null)}
+                                    className="text-xs text-muted-foreground hover:underline"
+                                  >
+                                    {t('common.cancel')}
+                                  </button>
                                 </div>
-                              </>
-                            )}
-                          </div>
-                        ))
-                    )}
-                  </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-3">
+                                    <FolderIcon size={16} className="text-blue-400" />
+                                    <span className="text-sm font-medium">
+                                      {folder.is_system ? t('folders.pinned') : folder.name}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      ({folder.item_count} items)
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => startRenameFolder(folder)}
+                                      className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                      title="Rename"
+                                    >
+                                      <MoreHorizontal size={14} />
+                                    </button>
+                                    {!folder.is_system && (
+                                      <button
+                                        onClick={() => handleDeleteFolder(folder.id)}
+                                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                        title="Delete"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </section>
                 </section>
               )}
             </div>

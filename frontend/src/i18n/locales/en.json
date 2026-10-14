@@ -66,6 +66,10 @@
   "settings": {
     "title": "Settings",
     "general": "General",
+    "groupAppearance": "Appearance",
+    "groupBehavior": "Behavior",
+    "groupData": "Data",
+    "groupPrivacy": "Privacy",
     "ai": "AI",
     "folders": "Folders",
     "appearance": "Appearance",
