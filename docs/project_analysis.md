@@ -1,7 +1,7 @@
-# PastePaw Project Analysis
+# VigilClip Project Analysis
 
 ## 1. Project Overview
-**PastePaw** is a native Windows clipboard history manager application built with a modern stack. It runs as a desktop application with a background service to monitor clipboard changes.
+**VigilClip** is a native Windows clipboard history manager application built with a modern stack. It runs as a desktop application with a background service to monitor clipboard changes.
 
 - **Type:** Desktop Application (Tauri)
 - **Primary Goal:** Store and manage clipboard history (Text, with scaffolding for other types).

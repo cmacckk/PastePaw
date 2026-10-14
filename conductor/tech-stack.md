@@ -1,4 +1,4 @@
-# Technology Stack - PastePaw
+# Technology Stack - VigilClip
 
 ## Core Frameworks
 - **Backend:** Rust with [Tauri 2.x](https://tauri.app/) for a lightweight, secure, and high-performance system integration.

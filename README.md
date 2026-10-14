@@ -1,8 +1,8 @@
 <h1 align="center">
     <picture>
-      <img src="https://raw.githubusercontent.com/cmacckk/PastePaw/refs/heads/main/src-tauri/icons/64x64.png" alt="PastePaw" width="32">
+      <img src="https://raw.githubusercontent.com/cmacckk/VigilClip/refs/heads/main/src-tauri/icons/64x64.png" alt="VigilClip" width="32">
     </picture>
-    PastePaw - Clipboard History Manager
+    VigilClip - Clipboard History Manager
 </h1>
 
 
@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cmacckk/PastePaw/actions/workflows/release.yml?branch=main"><img src="https://img.shields.io/github/actions/workflow/status/cmacckk/PastePaw/release.yml?branch=main&style=flat" alt="CI status"></a>
-  <a href="https://github.com/cmacckk/PastePaw/releases"><img src="https://img.shields.io/github/v/release/cmacckk/PastePaw?include_prereleases&style=flat" alt="GitHub release"></a>
+  <a href="https://github.com/cmacckk/VigilClip/actions/workflows/release.yml?branch=main"><img src="https://img.shields.io/github/actions/workflow/status/cmacckk/VigilClip/release.yml?branch=main&style=flat" alt="CI status"></a>
+  <a href="https://github.com/cmacckk/VigilClip/releases"><img src="https://img.shields.io/github/v/release/cmacckk/VigilClip?include_prereleases&style=flat" alt="GitHub release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL3.0-blue.svg?style=flat" alt="GPL-3.0 License"></a>
 </p>
 
@@ -24,8 +24,8 @@ A beautiful clipboard history manager for Windows, built with Rust + Tauri + Rea
 > This repository is a fork of [XueshiQiao/PastePaw](https://github.com/XueshiQiao/PastePaw),
 > kept Windows-only. Everything in this README describes **this** fork, whose current release is
 > **v1.6.0**. Upstream maintains its own release line and the macOS build on the
-> [App Store](https://apps.apple.com/us/app/pastepaw/id6759132043?mt=12) — see
-> [pastepaw.com](https://pastepaw.com/). Both are GPL-3.0.
+> [App Store](https://apps.apple.com/us/app/vigilclip/id6759132043?mt=12) — see
+> [vigilclip.com](https://vigilclip.com/). Both are GPL-3.0.
 
 ## What's New in v1.6.0
 
@@ -147,16 +147,16 @@ and no AI configuration is read. This is a Windows-only, fully local clipboard m
 
 Download the latest build from:
 
-**https://github.com/cmacckk/PastePaw/releases**
+**https://github.com/cmacckk/VigilClip/releases**
 
 Each release is named so you can tell the two kinds apart:
 
 | File | What it is |
 |------|------------|
-| `PastePaw_<version>_x64-setup.exe` | Installer (x64) — installs, adds a Start Menu entry, can register the hotkey |
-| `PastePaw_<version>_x86_64_portable.exe` | Portable (x64) — a single `.exe`, no installation |
-| `PastePaw_<version>_arm64-setup.exe` | Installer (Windows on ARM) |
-| `PastePaw_<version>_aarch64_portable.exe` | Portable (Windows on ARM) |
+| `VigilClip_<version>_x64-setup.exe` | Installer (x64) — installs, adds a Start Menu entry, can register the hotkey |
+| `VigilClip_<version>_x86_64_portable.exe` | Portable (x64) — a single `.exe`, no installation |
+| `VigilClip_<version>_arm64-setup.exe` | Installer (Windows on ARM) |
+| `VigilClip_<version>_aarch64_portable.exe` | Portable (Windows on ARM) |
 
 > **Portable builds** need nothing but the executable: Rust links its dependencies statically and
 > WebView2 ships with Windows, so the single `.exe` carries the whole application.
@@ -186,11 +186,11 @@ Editing a clip's text is not bound to a key — it lives in the right-click menu
 
 ## Application Exceptions (Ignored Apps)
 
-PastePaw allows you to exclude specific applications from being recorded in the clipboard history. This is useful for privacy-sensitive applications like password managers or banking apps.
+VigilClip allows you to exclude specific applications from being recorded in the clipboard history. This is useful for privacy-sensitive applications like password managers or banking apps.
 
 **Logic & Behavior:**
 - **How to manage:** Go to Settings -> Ignored Applications. You can browse for an executable (`.exe`) or strictly type its name.
-- **Privacy Protection:** When content is copied, PastePaw checks the source application against your ignore list.
+- **Privacy Protection:** When content is copied, VigilClip checks the source application against your ignore list.
 - **Robust Matching:** The system checks against **both**:
     1.  **Executable Name** (e.g., `notepad.exe`) - Matches any instance of this app regardless of location.
     2.  **Full File Path** (e.g., `C:\Windows\System32\notepad.exe`) - Matches only the specific installed instance.
@@ -275,7 +275,7 @@ garbled output in another application.
 ## Project Structure
 
 ```
-PastePaw/
+VigilClip/
 ├── src-tauri/                  # Rust backend
 │   ├── src/
 │   │   ├── main.rs             # App entry point

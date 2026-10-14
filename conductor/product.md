@@ -1,4 +1,4 @@
-# Product Definition - PastePaw
+# Product Definition - VigilClip
 
 ## Initial Concept
 A beautiful, high-performance clipboard history manager for Windows and macOS. It aims to provide a local-first, private, and feature-rich experience using Rust (Tauri) and React.

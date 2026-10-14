@@ -1,11 +1,11 @@
-# PastePaw Development Guide
+# VigilClip Development Guide
 
 **Windows-only** clipboard history manager built with Rust + Tauri 2.x + React + TypeScript. Do not add macOS/Linux code or `#[cfg(target_os = ...)]` branches.
 
 ## Project Structure
 
 ```
-PastePaw/
+VigilClip/
 ├── src-tauri/src/
 │   ├── lib.rs               # App bootstrap, window animation, tray, hotkey, blur handler
 │   ├── commands.rs          # Tauri IPC commands (clips, paste, folders, AI, shortcuts)

@@ -1,7 +1,7 @@
-# Product Guidelines - PastePaw
+# Product Guidelines - VigilClip
 
 ## Design Philosophy
-- **Modern Minimalist:** PastePaw prioritizes a clean, uncluttered interface. Use generous whitespace, clear typography, and subtle animations to provide a premium, high-performance feel.
+- **Modern Minimalist:** VigilClip prioritizes a clean, uncluttered interface. Use generous whitespace, clear typography, and subtle animations to provide a premium, high-performance feel.
 - **Visual Consistency:** Maintain a unified aesthetic across Windows and macOS while respecting platform-specific nuances (e.g., translucency effects like Acrylic/Mica on Windows and Vibrancy on macOS).
 
 ## Prose & Communication

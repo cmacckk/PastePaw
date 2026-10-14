@@ -1,8 +1,8 @@
 <h1 align="center">
     <picture>
-      <img src="https://raw.githubusercontent.com/cmacckk/PastePaw/refs/heads/main/src-tauri/icons/64x64.png" alt="PastePaw" width="32">
+      <img src="https://raw.githubusercontent.com/cmacckk/VigilClip/refs/heads/main/src-tauri/icons/64x64.png" alt="VigilClip" width="32">
     </picture>
-    PastePaw - 剪贴板历史管理器
+    VigilClip - 剪贴板历史管理器
 </h1>
 
 
@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cmacckk/PastePaw/actions/workflows/release.yml?branch=main"><img src="https://img.shields.io/github/actions/workflow/status/cmacckk/PastePaw/release.yml?branch=main&style=flat" alt="CI status"></a>
-  <a href="https://github.com/cmacckk/PastePaw/releases"><img src="https://img.shields.io/github/v/release/cmacckk/PastePaw?include_prereleases&style=flat" alt="GitHub release"></a>
+  <a href="https://github.com/cmacckk/VigilClip/actions/workflows/release.yml?branch=main"><img src="https://img.shields.io/github/actions/workflow/status/cmacckk/VigilClip/release.yml?branch=main&style=flat" alt="CI status"></a>
+  <a href="https://github.com/cmacckk/VigilClip/releases"><img src="https://img.shields.io/github/v/release/cmacckk/VigilClip?include_prereleases&style=flat" alt="GitHub release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL3.0-blue.svg?style=flat" alt="GPL-3.0 License"></a>
 </p>
 
@@ -23,8 +23,8 @@
 >
 > 本仓库是 [XueshiQiao/PastePaw](https://github.com/XueshiQiao/PastePaw) 的 fork，仅维护 Windows 平台。
 > 本 README 描述的是**本分支**，当前版本为 **v1.6.0**。上游维护自己的发布线，以及
-> [App Store](https://apps.apple.com/us/app/pastepaw/id6759132043?mt=12) 上的 macOS 版本，
-> 详见 [pastepaw.com](https://pastepaw.com/)。两者均为 GPL-3.0。
+> [App Store](https://apps.apple.com/us/app/vigilclip/id6759132043?mt=12) 上的 macOS 版本，
+> 详见 [vigilclip.com](https://vigilclip.com/)。两者均为 GPL-3.0。
 
 ## v1.6.0 更新内容
 
@@ -126,16 +126,16 @@ v1.6.0 让剪贴板真正开始保存**格式**而不只是文本，并让三个
 
 下载最新版本：
 
-**https://github.com/cmacckk/PastePaw/releases**
+**https://github.com/cmacckk/VigilClip/releases**
 
 每个 release 的命名可以直接区分两种形态：
 
 | 文件 | 说明 |
 |------|------|
-| `PastePaw_<版本>_x64-setup.exe` | 安装版（x64）——安装到系统，带开始菜单项，可注册快捷键 |
-| `PastePaw_<版本>_x86_64_portable.exe` | 便携版（x64）——单个 `.exe`，无需安装 |
-| `PastePaw_<版本>_arm64-setup.exe` | 安装版（Windows on ARM） |
-| `PastePaw_<版本>_aarch64_portable.exe` | 便携版（Windows on ARM） |
+| `VigilClip_<版本>_x64-setup.exe` | 安装版（x64）——安装到系统，带开始菜单项，可注册快捷键 |
+| `VigilClip_<版本>_x86_64_portable.exe` | 便携版（x64）——单个 `.exe`，无需安装 |
+| `VigilClip_<版本>_arm64-setup.exe` | 安装版（Windows on ARM） |
+| `VigilClip_<版本>_aarch64_portable.exe` | 便携版（Windows on ARM） |
 
 > **便携版**只需一个可执行文件：Rust 静态链接了依赖，WebView2 是 Windows 自带组件，因此单个 `.exe` 就是完整应用。
 
@@ -162,11 +162,11 @@ v1.6.0 让剪贴板真正开始保存**格式**而不只是文本，并让三个
 
 ## 应用例外（忽略的应用）
 
-PastePaw 允许你把特定应用排除在剪贴板历史之外，适用于密码管理器、银行类应用等隐私敏感场景。
+VigilClip 允许你把特定应用排除在剪贴板历史之外，适用于密码管理器、银行类应用等隐私敏感场景。
 
 **逻辑与行为：**
 - **如何管理：** 设置 -> 忽略的应用。可以浏览选择一个可执行文件（`.exe`），也可以严格输入它的名字。
-- **隐私保护：** 有内容被复制时，PastePaw 会用来源应用去比对忽略列表。
+- **隐私保护：** 有内容被复制时，VigilClip 会用来源应用去比对忽略列表。
 - **双重匹配：** 系统会同时比对：
     1.  **可执行文件名**（如 `notepad.exe`）——匹配该应用的任何实例，不论位置。
     2.  **完整文件路径**（如 `C:\Windows\System32\notepad.exe`）——只匹配这一处安装实例。
@@ -246,7 +246,7 @@ cargo test
 ## 项目结构
 
 ```
-PastePaw/
+VigilClip/
 ├── src-tauri/                  # Rust 后端
 │   ├── src/
 │   │   ├── main.rs             # 程序入口

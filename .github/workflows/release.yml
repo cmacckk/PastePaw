@@ -34,7 +34,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: 'PastePaw ${{ github.ref_name }}'
+          name: 'VigilClip ${{ github.ref_name }}'
           body: ${{ steps.changelog.outputs.body }}
           draft: false
           prerelease: false
@@ -116,13 +116,13 @@ jobs:
         run: |
           # The raw executable is the portable build: Rust links statically
           # and WebView2 is part of Windows, so nothing travels with it.
-          SOURCE="src-tauri/target/${{ matrix.target }}/release/PastePaw.exe"
+          SOURCE="src-tauri/target/${{ matrix.target }}/release/vigilclip.exe"
           if [ ! -f "$SOURCE" ]; then
             echo "::error::No executable at $SOURCE"
             exit 1
           fi
           ARCH="${{ matrix.target }}"
-          NAME="PastePaw_${GITHUB_REF_NAME#v}_${ARCH%%-*}_portable.exe"
+          NAME="VigilClip_${GITHUB_REF_NAME#v}_${ARCH%%-*}_portable.exe"
           cp "$SOURCE" "$NAME"
           echo "PORTABLE_ASSET=$NAME" >> "$GITHUB_ENV"
 
