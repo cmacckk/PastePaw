@@ -15,7 +15,7 @@ All notable changes to VigilClip will be documented in this file.
 - **Hover feedback** on clip cards: the card lifts and grows slightly, and stays still under the system "reduce motion" setting.
 - **Every installed font** is offered in the Interface Font and Clip Font pickers, and a font that is no longer installed still shows as the current value.
 - **A new icon set**: the stacked-card mark at every size Windows asks for, plus a light and a dark tray glyph.
-- The default language is Chinese; English is complete and the other languages fall back to it.
+- The default language is Chinese, and the interface ships Chinese and English.
 
 ### Fixed
 - The display size labels were hardcoded Chinese and ignored the chosen language.
@@ -35,7 +35,7 @@ All notable changes to VigilClip will be documented in this file.
 - **卡片悬停反馈**：卡片会略微抬起放大；系统开启“减少动态效果”时保持静止。
 - **字体列表**：界面字体与内容字体可选本机安装的所有字体，已卸载但仍在使用中的字体会作为当前值保留显示。
 - **全新图标**：Windows 需要的各种尺寸的堆叠卡片图标，以及浅色与深色两套托盘图形。
-- 默认语言为中文，英文已补全，其余语言回退到英文。
+- 默认语言为中文，界面提供中文与英文两种语言。
 
 ### 修复
 - 显示大小（默认 / 紧凑）的文案原本写死为中文，现在跟随所选语言。
