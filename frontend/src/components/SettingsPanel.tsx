@@ -12,6 +12,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from 'react-i18next';
+import { LANGUAGE_STORAGE_KEY } from '../i18n/config';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { FlaskConical } from 'lucide-react';
@@ -33,7 +34,7 @@ interface SettingsPanelProps {
 
 type Tab = 'general' | 'folders';
 
-const REPO_URL = 'https://github.com/cmacckk/PastePaw';
+const REPO_URL = 'https://github.com/cmacckk/VigilClip';
 const RELEASES_PAGE = `${REPO_URL}/releases/latest`;
 
 export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPanelProps) {
@@ -121,7 +122,7 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
     updateSetting('language', newLanguage);
     // Change language immediately
     i18n.changeLanguage(newLanguage);
-    localStorage.setItem('pastepaw_language', newLanguage);
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, newLanguage);
   };
 
   // Use use-shortcut-recorder for recording (shows current keys held in real-time)
@@ -1114,16 +1115,16 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
             onClick={() => openUrl(REPO_URL).catch(console.error)}
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            PastePaw {appVersion || '...'}
+            VigilClip {appVersion || '...'}
           </button>
           <div className="flex gap-2 text-xs text-muted-foreground">
             <a
-              href="https://pastepaw.com"
+              href={REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-foreground"
             >
-              © 2026 PastePaw
+              © 2026 VigilClip
             </a>
             <span>•</span>
             {updateAvailable ? (

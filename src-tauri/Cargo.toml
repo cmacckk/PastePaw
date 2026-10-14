@@ -1,5 +1,5 @@
 [package]
-name = "PastePaw"
+name = "vigilclip"
 version = "1.6.0"
 description = "A beautiful clipboard history manager"
 authors = ["XueshiQiao"]

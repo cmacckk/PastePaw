@@ -1,4 +1,3 @@
-#![allow(non_snake_case)] // crate name PastePaw is intentional
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
@@ -106,8 +105,8 @@ pub fn run_app() {
             use tauri_plugin_notification::NotificationExt;
             if let Err(e) = app.notification()
                 .builder()
-                .title("PastePaw")
-                .body("PastePaw is already running")
+                .title("VigilClip")
+                .body("VigilClip is already running")
                 .show() {
                 log::error!("Failed to send notification: {:?}", e);
             }
@@ -213,7 +212,7 @@ pub fn run_app() {
             // The logger is running by now, so anything the migration did while the app
             // was still starting up can be reported here.
             migration::log_report();
-            log::info!("PastePaw starting...");
+            log::info!("VigilClip starting...");
 
             // Initialize Settings Manager
             let db_for_settings = db_arc.clone();
@@ -221,6 +220,22 @@ pub fn run_app() {
                 SettingsManager::new(app.handle(), &db_for_settings).await
             });
             app.manage(Arc::new(settings_manager));
+
+            // The rename changes the name the autostart entry is registered under, and an
+            // entry also disappears whenever the executable is moved. Put it back when the
+            // setting says it should be there, so the checkbox cannot say one thing while
+            // Windows does another.
+            #[cfg(not(feature = "app-store"))]
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let wants_autostart = app.state::<Arc<SettingsManager>>().get().startup_with_windows;
+                if wants_autostart && !app.autolaunch().is_enabled().unwrap_or(false) {
+                    match app.autolaunch().enable() {
+                        Ok(()) => log::info!("Autostart was enabled but missing: registered it again"),
+                        Err(e) => log::warn!("Could not register autostart: {e}"),
+                    }
+                }
+            }
 
             // Apply the retention policy once at startup, before the window can show
             // anything. Logged at info level because the first run after this setting
@@ -267,7 +282,7 @@ pub fn run_app() {
             let version = env!("CARGO_PKG_VERSION");
             let title = format!("v{}", version);
             let title_i = MenuItem::with_id(app, "title", &title, false, None::<&str>)?;
-            let quit_i = MenuItem::with_id(app, "quit", "Quit PastePaw", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Quit VigilClip", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let separator_i = PredefinedMenuItem::separator(app)?;
             let menu = Menu::with_items(app, &[&title_i, &show_i, &separator_i, &quit_i])?;
@@ -289,7 +304,7 @@ pub fn run_app() {
                 .menu(&menu);
 
             let _tray = tray_builder
-                .tooltip("PastePaw")
+                .tooltip("VigilClip")
                 .on_menu_event(move |app, event| {
                     if event.id.as_ref() == "quit" {
                         app.exit(0);

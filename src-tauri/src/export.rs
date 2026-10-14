@@ -88,7 +88,7 @@ pub struct ImportReport {
 /// silently overwrite each other.
 pub fn suggested_file_name() -> String {
     format!(
-        "pastepaw-folders-{}.json",
+        "vigilclip-folders-{}.json",
         chrono::Utc::now().format("%Y-%m-%d")
     )
 }
@@ -187,7 +187,7 @@ pub async fn export_bundle(pool: &SqlitePool) -> Result<Bundle, String> {
 
     Ok(Bundle {
         version: BUNDLE_VERSION,
-        app: "PastePaw".to_string(),
+        app: "VigilClip".to_string(),
         exported_at: chrono::Utc::now().to_rfc3339(),
         folders: folders
             .into_iter()
@@ -609,7 +609,7 @@ mod tests {
         insert_clip(&source, "img", "image", "", Some(folder)).await;
         sqlx::query(
             r#"INSERT INTO clip_images (clip_uuid, full_content, file_path, storage_kind)
-               VALUES ('img', x'', '/nonexistent/pastepaw-import-test.png', 'file')"#,
+               VALUES ('img', x'', '/nonexistent/vigilclip-import-test.png', 'file')"#,
         )
         .execute(&source.pool)
         .await
@@ -618,7 +618,7 @@ mod tests {
         let bundle = export_bundle(&source.pool).await.expect("export");
         assert_eq!(
             bundle.clips[0].image_path.as_deref(),
-            Some("/nonexistent/pastepaw-import-test.png")
+            Some("/nonexistent/vigilclip-import-test.png")
         );
 
         let target = test_db().await;
@@ -803,7 +803,8 @@ mod tests {
     }
 
     /// A bundle written before titles existed has no `title` key at all. It has to keep
-    /// importing rather than being rejected, which is what `serde(default)` buys.
+    /// importing rather than being rejected, which is what `serde(default)` buys. The
+    /// `app` field says PastePaw on purpose: this is a bundle from an older build.
     #[tokio::test]
     async fn a_bundle_without_a_title_field_still_imports() {
         let db = test_db().await;
@@ -831,6 +832,61 @@ mod tests {
         let report = import_bundle_json(&db.pool, &json).await.expect("import");
 
         assert_eq!(report.clips_imported, 1);
+    }
+
+    /// A bundle written before the rename names the old app. Import keys off the bundle
+    /// version rather than the application name, so an export from an older build keeps
+    /// working instead of being rejected as foreign.
+    #[tokio::test]
+    async fn a_bundle_exported_under_the_old_name_still_imports() {
+        let db = test_db().await;
+        let json = serde_json::json!({
+            "version": BUNDLE_VERSION,
+            "app": "PastePaw",
+            "exported_at": "2026-06-01T00:00:00Z",
+            "folders": [{ "name": "work", "icon": null, "color": null, "is_system": false }],
+            "clips": [
+                {
+                    "clip_type": "text",
+                    "content": "one",
+                    "text_preview": "one",
+                    "content_hash": "hash-from-the-old-name-1",
+                    "folder": "work",
+                    "source_app": null,
+                    "metadata": null,
+                    "created_at": "2026-06-01T00:00:00Z",
+                    "html": null,
+                    "rtf_base64": null,
+                    "image_path": null
+                },
+                {
+                    "clip_type": "text",
+                    "content": "two",
+                    "text_preview": "two",
+                    "content_hash": "hash-from-the-old-name-2",
+                    "folder": null,
+                    "source_app": null,
+                    "metadata": null,
+                    "created_at": "2026-06-01T00:00:01Z",
+                    "html": null,
+                    "rtf_base64": null,
+                    "image_path": null
+                }
+            ]
+        })
+        .to_string();
+
+        let report = import_bundle_json(&db.pool, &json)
+            .await
+            .expect("an older bundle must still import");
+
+        assert_eq!(report.folders_created, 1, "the folder from the old bundle");
+        assert_eq!(report.clips_imported, 2, "both clips of the old bundle");
+        assert_eq!(report.clips_skipped, 0);
+        assert_eq!(
+            report.images_missing, 0,
+            "a text bundle has no images to miss"
+        );
     }
 
     /// The grid orders `created_at` as text, so an imported row has to use the same

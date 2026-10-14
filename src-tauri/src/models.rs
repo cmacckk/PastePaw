@@ -43,7 +43,7 @@ impl Default for AppSettings {
         Self {
             theme: "system".to_string(),
             mica_effect: "clear".to_string(),
-            language: "en".to_string(),
+            language: "zh".to_string(),
             max_items: 1000,
             auto_delete_days: 30,
             hotkey: "Ctrl+Shift+V".to_string(),

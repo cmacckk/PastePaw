@@ -25,13 +25,13 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         {
-          "url": "https://github.com/cmacckk/PastePaw"
+          "url": "https://github.com/cmacckk/VigilClip"
         },
         {
-          "url": "https://github.com/cmacckk/PastePaw/releases"
+          "url": "https://github.com/cmacckk/VigilClip/releases"
         },
         {
-          "url": "https://github.com/cmacckk/PastePaw/releases/latest"
+          "url": "https://github.com/cmacckk/VigilClip/releases/latest"
         }
       ]
     }

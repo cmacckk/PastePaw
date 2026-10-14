@@ -19,10 +19,10 @@ use tokio::sync::RwLock;
 
 /// The release feed this build reads: the newest published, non-prerelease
 /// release of the fork.
-pub const RELEASES_API: &str = "https://api.github.com/repos/cmacckk/PastePaw/releases/latest";
+pub const RELEASES_API: &str = "https://api.github.com/repos/cmacckk/VigilClip/releases/latest";
 
 /// Where the update button sends the user. The app never installs anything.
-pub const RELEASES_PAGE: &str = "https://github.com/cmacckk/PastePaw/releases/latest";
+pub const RELEASES_PAGE: &str = "https://github.com/cmacckk/VigilClip/releases/latest";
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const FIRST_CHECK_DELAY: Duration = Duration::from_secs(1);
@@ -109,7 +109,7 @@ pub fn release_from_json(json: &str, current: &str) -> Result<Option<UpdateInfo>
 /// user asked for a check. The background loop ignores the outcome entirely.
 pub async fn fetch_latest_release() -> Result<Option<UpdateInfo>, String> {
     let client = reqwest::Client::builder()
-        .user_agent(concat!("PastePaw/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("VigilClip/", env!("CARGO_PKG_VERSION")))
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|e| format!("Could not build an HTTP client: {e}"))?;

@@ -96,7 +96,7 @@ pub fn init(app: &AppHandle, db: Arc<Database>) {
         let db = db_clone.clone();
 
         // Capture source app info IMMEDIATELY at event time, before debounce delay.
-        // If we wait until after the delay, the user may have already switched to PastePaw,
+        // If we wait until after the delay, the user may have already switched to VigilClip,
         // causing frontmostApplication to return our own app instead of the real source.
         let source_app_info = get_clipboard_owner_app_info();
 

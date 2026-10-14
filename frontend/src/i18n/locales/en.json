@@ -105,7 +105,7 @@
     "ignoreGhostClips": "Ignore Ghost Clips",
     "ignoreGhostClipsDesc": "Ignore temporary clipboard items",
     "hotkey": "Global Hotkey",
-    "hotkeyDesc": "Shortcut to show/hide PastePaw",
+    "hotkeyDesc": "Shortcut to show/hide VigilClip",
     "hotkeyPlaceholder": "Click to record...",
     "hotkeyRecording": "Press keys...",
     "ignoredApps": "Ignored Applications",

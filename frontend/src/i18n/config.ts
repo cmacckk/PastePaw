@@ -26,6 +26,20 @@ const resources = {
   },
 };
 
+/** Where the chosen language is remembered. */
+export const LANGUAGE_STORAGE_KEY = 'vigilclip_language';
+/** The app used to store it under a key named after the name it had then. */
+const LEGACY_LANGUAGE_STORAGE_KEY = 'pastepaw_language';
+
+// Carry a choice made before the rename across, so changing the key does not send
+// someone who picked a language back to the default.
+const rememberedLanguage =
+  localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY);
+if (rememberedLanguage) {
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, rememberedLanguage);
+  localStorage.removeItem(LEGACY_LANGUAGE_STORAGE_KEY);
+}
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -38,7 +52,7 @@ i18n
     detection: {
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
-      lookupLocalStorage: 'pastepaw_language',
+      lookupLocalStorage: LANGUAGE_STORAGE_KEY,
     },
   });
 

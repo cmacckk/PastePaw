@@ -290,7 +290,7 @@ mod tests {
             .expect("insert format");
         sqlx::query(
             "INSERT INTO clip_images (clip_uuid, full_content, file_path, storage_kind)
-             VALUES (?, x'', '/nonexistent/pastepaw-test.png', 'file')",
+             VALUES (?, x'', '/nonexistent/vigilclip-test.png', 'file')",
         )
         .bind("doomed")
         .execute(&db.pool)
