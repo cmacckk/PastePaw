@@ -22,6 +22,7 @@ mod commands;
 mod constants;
 mod database;
 mod export;
+mod migration;
 mod models;
 mod pins;
 mod retention;
@@ -35,9 +36,17 @@ use settings_manager::SettingsManager;
 
 pub fn run_app() {
     let data_dir = get_data_dir();
+    // Before the directory exists: an install that ran under the old name still keeps its
+    // database and images there, and this moves them across once. Doing it before
+    // `create_dir_all` lets the migration move whole directories instead of merging into
+    // a directory this build has just created.
+    migration::migrate_data(&data_dir);
     fs::create_dir_all(&data_dir).ok();
-    let db_path = data_dir.join("paste_paw.db");
-    let db_path_str = db_path.to_str().unwrap_or("paste_paw.db").to_string();
+    let db_path = data_dir.join(constants::DB_FILE_NAME);
+    let db_path_str = db_path
+        .to_str()
+        .unwrap_or(constants::DB_FILE_NAME)
+        .to_string();
 
     let rt = get_runtime().expect("Failed to get global tokio runtime");
     let _guard = rt.enter();
@@ -201,6 +210,9 @@ pub fn run_app() {
             }
         })
         .setup(move |app| {
+            // The logger is running by now, so anything the migration did while the app
+            // was still starting up can be reported here.
+            migration::log_report();
             log::info!("PastePaw starting...");
 
             // Initialize Settings Manager
@@ -826,11 +838,11 @@ pub fn animate_window_hide(
     });
 }
 
-fn get_data_dir() -> std::path::PathBuf {
+pub fn get_data_dir() -> std::path::PathBuf {
     let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("."));
     match dirs::data_dir() {
-        Some(path) => path.join("PastePaw"),
-        None => current_dir.join("PastePaw"),
+        Some(path) => path.join(constants::APP_DIR_NAME),
+        None => current_dir.join(constants::APP_DIR_NAME),
     }
 }
 

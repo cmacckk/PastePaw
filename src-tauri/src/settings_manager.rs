@@ -13,7 +13,13 @@ pub struct SettingsManager {
 
 impl SettingsManager {
     pub async fn new(app: &AppHandle, db: &Database) -> Self {
-        let path = app.path().app_data_dir().unwrap().join("settings.json");
+        let dir = app.path().app_data_dir().unwrap();
+        // An install from before the rename kept its settings under the old identifier's
+        // directory. Move that file across before deciding there is nothing to load.
+        if crate::migration::migrate_settings(&dir) {
+            log::info!("Migrated settings.json from the previous name");
+        }
+        let path = dir.join("settings.json");
         let settings = if path.exists() {
             // Load from file
             match fs::read_to_string(&path) {

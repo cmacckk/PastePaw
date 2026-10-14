@@ -842,12 +842,9 @@ pub(crate) fn calculate_hash(content: &[u8]) -> String {
 }
 
 fn get_image_store_dir() -> std::path::PathBuf {
-    let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("."));
-    let app_data_dir = match dirs::data_dir() {
-        Some(path) => path.join("PastePaw"),
-        None => current_dir.join("PastePaw"),
-    };
-    app_data_dir.join("images")
+    // One definition of where this app keeps its data, in `lib.rs`, so the images cannot
+    // end up somewhere the migration does not look.
+    crate::get_data_dir().join("images")
 }
 
 pub fn persist_full_image_file(clip_uuid: &str, png_bytes: &[u8]) -> Result<String, String> {
