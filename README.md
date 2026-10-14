@@ -66,8 +66,7 @@ A clip card lifts and grows slightly under the pointer, and stays still when the
 
 ### 🌏 Chinese by default, English complete
 
-The interface now starts in Chinese. English is complete, and German, French and Japanese fall back
-to English for the newest strings — as they always did for anything untranslated.
+The interface ships Chinese and English, and starts in Chinese.
 
 ## What's New in v1.6.0
 
@@ -195,8 +194,6 @@ Each release is named so you can tell the two kinds apart:
 
 > **Portable builds** need nothing but the executable: Rust links its dependencies statically and
 > WebView2 ships with Windows, so the single `.exe` carries the whole application.
-
-> 🔍 **Security:** Every release is automatically scanned with [VirusTotal](https://www.virustotal.com/) (70+ antivirus engines). Scan results are linked at the bottom of each release note.
 
 > ⚠️ **No `winget` package for this fork.** `winget install XueshiQiao.PastePaw` installs *upstream's*
 > build, which does not contain any of the features listed above. Install from this repository's

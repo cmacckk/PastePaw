@@ -569,13 +569,10 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                     <span className="text-sm font-medium">{t('settings.language')}</span>
                     <div className="w-56 shrink-0">
                       <Select
-                        value={settings.language || 'en'}
+                        value={settings.language || 'zh'}
                         onChange={handleLanguageChange}
                         options={[
-                          { value: 'de', label: 'Deutsch' },
                           { value: 'en', label: 'English' },
-                          { value: 'fr', label: 'Francais' },
-                          { value: 'ja', label: '日本語' },
                           { value: 'zh', label: '中文' },
                         ]}
                       />

@@ -59,7 +59,7 @@
 
 ### 🌏 默认中文，英文补全
 
-界面默认语言改为中文。英文已补全，德语、法语、日语中尚未翻译的新文案继续回退到英文。
+界面提供中文与英文两种语言，默认中文。
 
 ## v1.6.0 更新内容
 
@@ -164,8 +164,6 @@ v1.6.0 让剪贴板真正开始保存**格式**而不只是文本，并让三个
 | `VigilClip_<版本>_aarch64_portable.exe` | 便携版（Windows on ARM） |
 
 > **便携版**只需一个可执行文件：Rust 静态链接了依赖，WebView2 是 Windows 自带组件，因此单个 `.exe` 就是完整应用。
-
-> 🔍 **安全**：每个 release 都会用 [VirusTotal](https://www.virustotal.com/)（70+ 杀毒引擎）自动扫描，扫描结果链接在每个 release 说明的底部。
 
 > ⚠️ **本分支没有 `winget` 包。** `winget install XueshiQiao.PastePaw` 安装的是**上游**版本，其中不含上文列出的任何功能。请从本仓库的 Releases 页面安装。
 
