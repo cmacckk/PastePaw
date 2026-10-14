@@ -112,3 +112,12 @@ pub async fn get_ignored_apps(app: AppHandle) -> Result<Vec<String>, String> {
     apps.sort();
     Ok(apps)
 }
+
+/// The font families this machine has, for the typography settings.
+///
+/// The list comes from the system rather than from a fixed set, because the fonts a
+/// Windows machine has depend on what its owner installed.
+#[tauri::command]
+pub fn get_installed_fonts() -> Vec<String> {
+    crate::fonts::installed_font_families().clone()
+}

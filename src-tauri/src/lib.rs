@@ -21,6 +21,7 @@ mod commands;
 mod constants;
 mod database;
 mod export;
+mod fonts;
 mod migration;
 mod models;
 mod pins;
@@ -405,6 +406,7 @@ pub fn run_app() {
             settings_commands::add_ignored_app,
             settings_commands::remove_ignored_app,
             settings_commands::get_ignored_apps,
+            settings_commands::get_installed_fonts,
             commands::pick_file,
             commands::get_layout_config,
             commands::test_log,
