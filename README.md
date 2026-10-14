@@ -25,6 +25,10 @@ A beautiful clipboard history manager for Windows, built with Rust + Tauri + Rea
 > kept Windows-only. Everything in this README describes **this** fork, whose current release is
 > **v2.0.0**. Upstream maintains its own release line and the macOS build on the
 > [App Store](https://apps.apple.com/us/app/pastepaw/id6759132043?mt=12). Both are GPL-3.0.
+>
+> **This is a modified version of the original.** Changes to it began on 2026-09-24 and are listed
+> in [CHANGELOG.md](CHANGELOG.md). The copyright of the original work stays with its authors, and
+> both the original and this fork are licensed under GPL-3.0.
 
 ## What's New in v2.0.0
 

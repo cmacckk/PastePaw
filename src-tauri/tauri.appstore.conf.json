@@ -34,10 +34,7 @@
         ],
         "macOS": {
             "entitlements": "./Entitlements.plist",
-            "signingIdentity": "Apple Distribution",
-            "files": {
-                "embedded.provisionprofile": "VigilClip.provisionprofile"
-            }
+            "signingIdentity": "Apple Distribution"
         }
     }
 }

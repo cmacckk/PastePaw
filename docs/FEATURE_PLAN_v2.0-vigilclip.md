@@ -22,7 +22,7 @@
 ### 后端
 - `src-tauri/Cargo.toml`：包名 `PastePaw` → `vigilclip`（cue: `main.rs` 的 `use PastePaw::run_app`、`lib.rs` 的 `#![allow(non_snake_case)]` 注释）
 - `src-tauri/tauri.conf.json`：`productName`、`identifier`、`app.windows[0].title`、asset 协议作用域 `$DATA/PastePaw/images/**`
-- `src-tauri/tauri.appstore.conf.json`：窗口标题、`embedded.provisionprofile` 名
+- `src-tauri/tauri.appstore.conf.json`：窗口标题（v2.0.0 之后移除了对上游 provisioning profile 的引用）
 - 数据目录：`get_data_dir()` 返回 `…\VigilClip`；库文件 `paste_paw.db` → `vigilclip.db`；图片目录 `…\VigilClip`
 - 托盘：tooltip、id 相关字符串
 - 开机自启：`tauri-plugin-autostart` 的注册名（identifier 变则注册表项变，需重新登记）
