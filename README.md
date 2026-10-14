@@ -27,7 +27,50 @@ A beautiful clipboard history manager for Windows, built with Rust + Tauri + Rea
 > [App Store](https://apps.apple.com/us/app/vigilclip/id6759132043?mt=12) — see
 > [vigilclip.com](https://vigilclip.com/). Both are GPL-3.0.
 
+## What's New in v2.0.0
+
+### 🪧 The application is called VigilClip
+
+The executable, the data directory, the database file name, the repository and every interface string
+changed with it. An existing install is carried over on the first start: the database, the stored
+images and the settings move into the new locations, and the old directory is renamed to
+`PastePaw.migrated` instead of being deleted, so nothing is lost if anything looks wrong afterwards.
+
+### 🎨 A rebuilt settings window
+
+The settings window was rebuilt around a narrow navigation column — General, Appearance, Behavior,
+Folders, Data, Privacy — with one row per setting, instead of the stacked cards it used to have.
+
+![History retention](docs/screenshot_win_retention.png)
+
+![Export and import](docs/screenshot_win_export.png)
+
+### 🔵 Folders have colours
+
+A folder can be given one of ten colours when it is created and changed later from the settings. The
+toolbar shows that colour as a dot next to the name, and a folder without one keeps a colour derived
+from its name so the bar never looks flat.
+
+![Type and source filters](docs/screenshot_win_filters.png)
+
+### 🔤 Every installed font
+
+The Interface Font and Clip Font pickers list every font installed on the machine rather than a short
+hardcoded list. A font that has since been uninstalled still shows as the current value instead of
+leaving the control blank.
+
+### 🖱️ Hover feedback
+
+A clip card lifts and grows slightly under the pointer, and stays still when the system's
+"reduce motion" setting is on.
+
+### 🌏 Chinese by default, English complete
+
+The interface now starts in Chinese. English is complete, and German, French and Japanese fall back
+to English for the newest strings — as they always did for anything untranslated.
+
 ## What's New in v1.6.0
+
 
 v1.6.0 is the release that makes the clipboard store *formats*, not just text — and the one that
 makes three settings that never worked actually work.
@@ -60,8 +103,6 @@ transparent PNG pasted out with a **black background**. Images are now written f
 from an earlier version but **no code ever read them**, so history grew without bound in the
 database and on disk. Both are now applied, with built-in folders exempt.
 
-![History retention](docs/screenshot_win_retention.png)
-
 ### 📌 Pin with `P`
 
 `P` saves the selected clip into the built-in **Pinned** folder. The shortcut was documented in the
@@ -74,13 +115,9 @@ Export your folders to a single readable JSON file and import it on another mach
 merge on import, files are hashed so **importing the same file twice changes nothing**, and a clip
 whose image is missing on the target machine is kept and marked rather than dropped.
 
-![Export and import](docs/screenshot_win_export.png)
-
 ### 🗂️ Type and source filters
 
 Narrow the list by content type (text / image / file) or by the application a clip came from.
-
-![Type and source filters](docs/screenshot_win_filters.png)
 
 ### 🏷️ Custom titles and editing
 

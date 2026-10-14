@@ -43,7 +43,7 @@ export function generateDemoFolders(): FolderItem[] {
       id: DEMO_FOLDER_IDS.pinned,
       name: 'Pinned',
       icon: null,
-      color: null,
+      color: '#ec4899',
       is_system: true,
       item_count: 1,
     },
@@ -51,7 +51,7 @@ export function generateDemoFolders(): FolderItem[] {
       id: DEMO_FOLDER_IDS.work,
       name: 'Work',
       icon: null,
-      color: null,
+      color: '#3b82f6',
       is_system: false,
       item_count: 2,
     },
@@ -59,7 +59,7 @@ export function generateDemoFolders(): FolderItem[] {
       id: DEMO_FOLDER_IDS.snippets,
       name: 'Snippets',
       icon: null,
-      color: null,
+      color: '#eab308',
       is_system: false,
       item_count: 2,
     },
@@ -67,7 +67,7 @@ export function generateDemoFolders(): FolderItem[] {
       id: DEMO_FOLDER_IDS.design,
       name: 'Design',
       icon: null,
-      color: null,
+      color: '#8b5cf6',
       is_system: false,
       item_count: 1,
     },
@@ -117,12 +117,12 @@ export function generateDemoClips(): ClipboardItem[] {
       clip_type: 'text',
       // Rich text is stored as a text clip plus its HTML and RTF alternates, so the
       // card reads like any other text card. Pasting into Word keeps the formatting.
-      content: `Release notes for v1.6.0
+      content: `Release notes for v2.0.0
 
 Rich text keeps its HTML
 and RTF, so pasting into
 Word stays formatted.`,
-      preview: 'Release notes — VigilClip v1.6.0',
+      preview: 'Release notes — VigilClip v2.0.0',
       folder_id: null,
       created_at: ago(3),
       source_app: 'WINWORD.EXE',

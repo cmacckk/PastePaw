@@ -1,17 +1,45 @@
 # Changelog
 
-All notable changes to PastePaw will be documented in this file.
+All notable changes to VigilClip will be documented in this file.
 
-## Unreleased
+## v2.0.0
 
 ### Changed
-- **The application no longer installs its own updates.** The updater plugin pointed at the upstream repository and carried the upstream signing key, so a release published there would have been offered to this build and installed over it. PastePaw now reads the newest release of this repository, tells you when one exists, and opens the release page in your browser when you click the button.
+- **The application is called VigilClip now.** The bundle identifier, the executable, the data directory, the database file, the repository and every interface string changed with it. An existing install is carried over on the first start: the database, the stored images and the settings are moved into the new locations, and the old directory is renamed to `PastePaw.migrated` instead of being deleted.
+- **The settings window was rebuilt** around a narrow navigation column (General, Appearance, Behavior, Folders, Data, Privacy) with one row per setting, instead of the stacked cards it used to have.
+- **The application no longer installs its own updates.** The updater plugin pointed at the upstream repository and carried the upstream signing key, so a release published there would have been offered to this build and installed over it. VigilClip now reads the newest release of this repository, tells you when one exists, and opens its release page in your browser when you ask for it.
+- The folder filter in the toolbar reads as a coloured dot with a name rather than a coloured pill.
+
+### Added
+- **Folder colours**: a folder can be given one of ten colours when it is created and changed later from the settings; its dot shows that colour, and a folder without one keeps a colour derived from its name.
+- **Hover feedback** on clip cards: the card lifts and grows slightly, and stays still under the system "reduce motion" setting.
+- **Every installed font** is offered in the Interface Font and Clip Font pickers, and a font that is no longer installed still shows as the current value.
+- **A new icon set**: the stacked-card mark at every size Windows asks for, plus a light and a dark tray glyph.
+- The default language is Chinese; English is complete and the other languages fall back to it.
+
+### Fixed
+- The display size labels were hardcoded Chinese and ignored the chosen language.
+- Autostart is registered again after the rename when the setting says it should be running, so the checkbox and Windows agree.
 
 ### Removed
 - **Downloading and installing updates from inside the application**, together with the updater plugin, its signing key configuration and the signed updater artifacts that went with it. Nothing is downloaded or installed in the background.
 
 ### 修改
-- **不再由程序自己安装更新。** 原来的更新插件指向上游仓库并使用上游的签名密钥，上游一旦发版就会被提示并覆盖安装到本分支。现在 PastePaw 只读取本仓库的最新 Release，有新版时提示你，点击按钮后打开浏览器里的发布页面。
+- **程序更名为 VigilClip。** 包标识、可执行文件、数据目录、数据库文件、仓库地址与界面文案一并更换。旧版本的数据会在首次启动时迁移过来：数据库、图片与设置都搬到新位置，旧目录改名为 `PastePaw.migrated` 保留而不是删除。
+- **设置界面重做为**左侧窄导航（通用 / 外观 / 行为 / 文件夹 / 数据 / 隐私）+ 每项一行的形式，不再是原来的卡片堆叠。
+- **不再由程序自己安装更新。** 原来的更新插件指向上游仓库并使用上游的签名密钥，上游一旦发版就会被提示并覆盖安装到本分支。现在 VigilClip 只读取本仓库的最新 Release，有新版时提示你，点击后打开浏览器里的发布页面。
+- 工具栏的文件夹筛选改为彩色圆点加名字。
+
+### 新增
+- **文件夹颜色**：创建文件夹时可以从十种颜色里选一种，之后可在设置里修改；圆点显示该颜色，未设置颜色的文件夹仍按名字生成颜色。
+- **卡片悬停反馈**：卡片会略微抬起放大；系统开启“减少动态效果”时保持静止。
+- **字体列表**：界面字体与内容字体可选本机安装的所有字体，已卸载但仍在使用中的字体会作为当前值保留显示。
+- **全新图标**：Windows 需要的各种尺寸的堆叠卡片图标，以及浅色与深色两套托盘图形。
+- 默认语言为中文，英文已补全，其余语言回退到英文。
+
+### 修复
+- 显示大小（默认 / 紧凑）的文案原本写死为中文，现在跟随所选语言。
+- 更名后若开机自启处于开启状态，会重新登记启动项，避免设置与实际不一致。
 
 ### 移除
 - **应用内下载并安装更新**，同时移除更新插件、签名密钥配置以及相应的签名产物。后台不会下载或安装任何东西。
