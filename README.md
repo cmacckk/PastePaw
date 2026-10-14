@@ -170,12 +170,10 @@ and no AI configuration is read. This is a Windows-only, fully local clipboard m
 
 ## Screenshots
 
-![docs/screenshot_win_panes.png](docs/screenshot_win_panes.png)
-
-### Light theme
-![docs/screenshot_win_light.png](docs/screenshot_win_light.png)
-### Dark theme
-![docs/screenshot_win_dark.png](docs/screenshot_win_dark.png)
+Every screenshot in this file is of the current build, taken from the demo data the development
+build can load, so nothing here is anybody's real clipboard. The older full-desktop captures were
+removed: they showed the interface as it was before the rename and before the settings window was
+rebuilt.
 
 
 ## Installation Guide

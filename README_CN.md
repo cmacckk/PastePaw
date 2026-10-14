@@ -142,12 +142,8 @@ v1.6.0 让剪贴板真正开始保存**格式**而不只是文本，并让三个
 
 ## 截图
 
-![docs/screenshot_win_panes.png](docs/screenshot_win_panes.png)
-
-### 浅色主题
-![docs/screenshot_win_light.png](docs/screenshot_win_light.png)
-### 深色主题
-![docs/screenshot_win_dark.png](docs/screenshot_win_dark.png)
+本文档中的截图都来自当前版本，使用开发构建可加载的演示数据，不包含任何真实剪贴内容。
+早期的整屏截图已移除：它们展示的是更名之前、设置界面重做之前的旧界面。
 
 
 ## 安装说明
