@@ -194,9 +194,13 @@ export const ClipCard = memo(
             } as React.CSSProperties
           }
           className={clsx(
-            'relative flex h-full w-full cursor-pointer select-none flex-col overflow-hidden rounded-2xl border border-border bg-card/80 transition-all',
-            isSelected ? 'z-10 scale-[1.02] transform shadow-xl' : 'hover:-translate-y-1 shadow-lg',
-            'group'
+            'group relative flex h-full w-full cursor-pointer select-none flex-col overflow-hidden rounded-2xl border border-border bg-card/80 transition-all duration-150 ease-out',
+            // The hover lift is what makes the card feel like it comes towards the
+            // pointer. `motion-safe` drops the movement for anyone who asked the system
+            // for less animation; the shadow still changes, which is not movement.
+            isSelected
+              ? 'z-10 scale-[1.02] transform shadow-xl'
+              : 'shadow-lg motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.03] hover:z-10 hover:shadow-2xl'
           )}
         >
           {/* Framer-motion spotlight border glow */}

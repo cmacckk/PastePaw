@@ -37,6 +37,19 @@ type Tab = 'general' | 'folders';
 const REPO_URL = 'https://github.com/cmacckk/VigilClip';
 const RELEASES_PAGE = `${REPO_URL}/releases/latest`;
 
+/// The font picker offers everything installed. A saved family that is no longer
+/// installed is appended, so the control never shows a blank where a font used to be.
+function fontOptions(installed: string[], current: string, defaultLabel: string) {
+  const options = [
+    { value: '', label: defaultLabel },
+    ...installed.map((family) => ({ value: family, label: family })),
+  ];
+  if (current && !installed.includes(current)) {
+    options.push({ value: current, label: current });
+  }
+  return options;
+}
+
 export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [settings, setSettings] = useState<Settings>(initialSettings);
@@ -47,6 +60,15 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
   const [newFolderName, setNewFolderName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+
+  // Every font family this machine has. It comes from the backend, so the pickers offer
+  // what is really installed instead of a short hardcoded list.
+  const [installedFonts, setInstalledFonts] = useState<string[]>([]);
+  useEffect(() => {
+    invoke<string[]>('get_installed_fonts')
+      .then(setInstalledFonts)
+      .catch((error) => console.error('Failed to load the installed fonts:', error));
+  }, []);
 
   const { updateAvailable, setUpdateAvailable } = useAutoUpdater('SettingsPanel');
   console.log('[SettingsPanel:Render] updateAvailable state:', updateAvailable);
@@ -514,23 +536,15 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                       <div className="space-y-3">
                         <label className="block">
                           <span className="text-sm font-medium">
-                            {i18n.language.startsWith('zh') ? '界面大小' : 'Display Size'}
+                            {t('settings.displaySize')}
                           </span>
                         </label>
                         <Select
                           value={settings.card_size || 'large'}
                           onChange={(val) => updateSetting('card_size', val)}
                           options={[
-                            {
-                              value: 'large',
-                              label: i18n.language.startsWith('zh')
-                                ? '默认 (大)'
-                                : 'Default (Large)',
-                            },
-                            {
-                              value: 'medium',
-                              label: i18n.language.startsWith('zh') ? '紧凑 (小)' : 'Compact',
-                            },
+                            { value: 'large', label: t('settings.displaySizeLarge') },
+                            { value: 'medium', label: t('settings.displaySizeCompact') },
                           ]}
                         />
                       </div>
@@ -686,15 +700,11 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                         <Select
                           value={settings.ui_font_family || ''}
                           onChange={(val) => updateSetting('ui_font_family', val)}
-                          options={[
-                            { value: '', label: t('settings.fontDefault') },
-                            { value: 'Segoe UI', label: 'Segoe UI' },
-                            { value: 'Microsoft YaHei', label: '微软雅黑' },
-                            { value: 'DengXian', label: '等线' },
-                            { value: 'SimSun', label: '宋体' },
-                            { value: 'Arial', label: 'Arial' },
-                            { value: 'Verdana', label: 'Verdana' },
-                          ]}
+                          options={fontOptions(
+                            installedFonts,
+                            settings.ui_font_family || '',
+                            t('settings.fontDefault')
+                          )}
                         />
                       </div>
 
@@ -724,14 +734,11 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                         <Select
                           value={settings.content_font_family || ''}
                           onChange={(val) => updateSetting('content_font_family', val)}
-                          options={[
-                            { value: '', label: t('settings.fontDefaultMono') },
-                            { value: 'Consolas', label: 'Consolas' },
-                            { value: 'Cascadia Mono', label: 'Cascadia Mono' },
-                            { value: 'Courier New', label: 'Courier New' },
-                            { value: 'Microsoft YaHei', label: '微软雅黑' },
-                            { value: 'SimSun', label: '宋体' },
-                          ]}
+                          options={fontOptions(
+                            installedFonts,
+                            settings.content_font_family || '',
+                            t('settings.fontDefaultMono')
+                          )}
                         />
                       </div>
 

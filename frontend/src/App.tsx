@@ -886,7 +886,6 @@ function App() {
             onFolderContextMenu={(e, folderId) => {
               if (folderId) handleContextMenu(e, 'folder', folderId);
             }}
-            theme={effectiveTheme}
             updateAvailable={updateAvailable}
           />
 

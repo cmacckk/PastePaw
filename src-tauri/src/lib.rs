@@ -390,6 +390,7 @@ pub fn run_app() {
             commands::move_to_folder,
             commands::create_folder,
             commands::rename_folder,
+            commands::set_folder_color,
             commands::delete_folder,
             commands::search_clips,
             commands::get_folders,

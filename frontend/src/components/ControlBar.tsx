@@ -28,7 +28,6 @@ interface ControlBarProps {
   selectedSourceApp: string | null;
   onSelectSourceApp: (name: string | null) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folderId: string) => void;
-  theme?: 'light' | 'dark';
   style?: React.CSSProperties;
   updateAvailable?: import('../hooks/useAutoUpdater').UpdateInfo | null;
 }
@@ -44,6 +43,32 @@ const CLIP_TYPE_FILTERS = [
   { type: 'image', Icon: Image, labelKey: 'clipTypes.image' },
   { type: 'file', Icon: File, labelKey: 'clipTypes.file' },
 ] as const;
+
+/// Colours for the folder dots. A folder keeps the colour it was given; the rest fall
+/// back to a stable colour derived from the name, so a folder never changes colour.
+const FOLDER_DOT_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#64748b',
+];
+
+function folderDotColor(name: string, color?: string | null) {
+  if (color) {
+    return color;
+  }
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return FOLDER_DOT_COLORS[Math.abs(hash) % FOLDER_DOT_COLORS.length];
+}
 
 export function ControlBar({
   folders,
@@ -66,7 +91,6 @@ export function ControlBar({
   selectedSourceApp,
   onSelectSourceApp,
   onFolderContextMenu,
-  theme = 'dark',
   style,
   updateAvailable,
 }: ControlBarProps) {
@@ -87,172 +111,6 @@ export function ControlBar({
     onDragLeave();
   };
 
-  const getFolderColor = (name: string) => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const colors =
-      theme === 'light'
-        ? [
-            {
-              active: 'bg-red-600 text-white ring-2 ring-red-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-red-400 text-white hover:bg-red-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-orange-600 text-white ring-2 ring-orange-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-orange-400 text-white hover:bg-orange-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-amber-600 text-white ring-2 ring-amber-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-amber-400 text-white hover:bg-amber-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-green-600 text-white ring-2 ring-green-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-green-400 text-white hover:bg-green-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-emerald-600 text-white ring-2 ring-emerald-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-emerald-400 text-white hover:bg-emerald-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-teal-600 text-white ring-2 ring-teal-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-teal-400 text-white hover:bg-teal-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-cyan-600 text-white ring-2 ring-cyan-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-cyan-400 text-white hover:bg-cyan-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-sky-600 text-white ring-2 ring-sky-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-sky-400 text-white hover:bg-sky-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-blue-600 text-white ring-2 ring-blue-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-blue-400 text-white hover:bg-blue-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-indigo-600 text-white ring-2 ring-indigo-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-indigo-400 text-white hover:bg-indigo-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-violet-600 text-white ring-2 ring-violet-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-violet-400 text-white hover:bg-violet-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-purple-600 text-white ring-2 ring-purple-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-purple-400 text-white hover:bg-purple-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-fuchsia-600 text-white ring-2 ring-fuchsia-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-fuchsia-400 text-white hover:bg-fuchsia-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-pink-600 text-white ring-2 ring-pink-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-pink-400 text-white hover:bg-pink-500 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-rose-600 text-white ring-2 ring-rose-500/50 font-bold drop-shadow-sm',
-              inactive: 'bg-rose-400 text-white hover:bg-rose-500 hover:text-white drop-shadow-sm',
-            },
-          ]
-        : [
-            {
-              active: 'bg-red-400/30 text-white ring-2 ring-red-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-red-400/10 text-white/80 hover:bg-red-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-orange-400/30 text-white ring-2 ring-orange-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-orange-400/10 text-white/80 hover:bg-orange-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-amber-400/30 text-white ring-2 ring-amber-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-amber-400/10 text-white/80 hover:bg-amber-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-green-400/30 text-white ring-2 ring-green-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-green-400/10 text-white/80 hover:bg-green-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-emerald-400/30 text-white ring-2 ring-emerald-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-emerald-400/10 text-white/80 hover:bg-emerald-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-teal-400/30 text-white ring-2 ring-teal-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-teal-400/10 text-white/80 hover:bg-teal-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-cyan-400/30 text-white ring-2 ring-cyan-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-cyan-400/10 text-white/80 hover:bg-cyan-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-sky-400/30 text-white ring-2 ring-sky-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-sky-400/10 text-white/80 hover:bg-sky-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-blue-400/30 text-white ring-2 ring-blue-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-blue-400/10 text-white/80 hover:bg-blue-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-indigo-400/30 text-white ring-2 ring-indigo-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-indigo-400/10 text-white/80 hover:bg-indigo-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-violet-400/30 text-white ring-2 ring-violet-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-violet-400/10 text-white/80 hover:bg-violet-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-purple-400/30 text-white ring-2 ring-purple-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-purple-400/10 text-white/80 hover:bg-purple-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active:
-                'bg-fuchsia-400/30 text-white ring-2 ring-fuchsia-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-fuchsia-400/10 text-white/80 hover:bg-fuchsia-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-pink-400/30 text-white ring-2 ring-pink-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-pink-400/10 text-white/80 hover:bg-pink-400/20 hover:text-white drop-shadow-sm',
-            },
-            {
-              active: 'bg-rose-400/30 text-white ring-2 ring-rose-500/50 font-bold drop-shadow-sm',
-              inactive:
-                'bg-rose-400/10 text-white/80 hover:bg-rose-400/20 hover:text-white drop-shadow-sm',
-            },
-          ];
-    return colors[Math.abs(hash) % colors.length];
-  };
 
   return (
     <div data-el="control-bar" className="drag-area flex items-end gap-4 px-6 pb-0" style={style}>
@@ -314,29 +172,6 @@ export function ControlBar({
         {allCategories.map((cat) => {
           const isActive = selectedFolder === cat.id;
 
-          // Define colors based on category
-          let colorClass =
-            theme === 'light'
-              ? 'bg-slate-400 text-white hover:bg-slate-500 hover:text-white shadow-sm'
-              : 'bg-secondary text-white hover:bg-secondary/80 hover:text-white shadow-sm';
-
-          if (cat.id === null) {
-            // System "All" Folder
-            if (theme === 'light') {
-              colorClass = isActive
-                ? 'bg-slate-600 text-white ring-1 ring-slate-500/50 font-bold shadow-sm'
-                : 'bg-slate-400 text-white hover:bg-slate-500 hover:text-white shadow-sm';
-            } else {
-              colorClass = isActive
-                ? 'bg-indigo-500/20 text-white ring-1 ring-indigo-500/50 font-bold shadow-sm'
-                : 'bg-indigo-500/10 text-white/80 hover:bg-indigo-500/20 hover:text-white shadow-sm';
-            }
-          } else {
-            // Custom Folder - Use dynamic color
-            const style = getFolderColor(cat.name);
-            colorClass = isActive ? style.active : style.inactive;
-          }
-
           return (
             <button
               key={cat.id ?? 'all'}
@@ -353,24 +188,32 @@ export function ControlBar({
                   onFolderContextMenu(e, cat.id);
                 }
               }}
-              style={
-                {
-                  WebkitAppRegion: 'no-drag',
-                  textShadow:
-                    theme === 'light' ? '0 1px 3px rgba(0,0,0,0.8)' : '0 1px 2px rgba(0,0,0,0.7)',
-                } as any
-              }
+              style={{ WebkitAppRegion: 'no-drag' } as any}
               className={clsx(
-                'whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all',
-                colorClass,
-                isDragging && cat.id === dragTargetFolderId && 'bg-accent ring-2 ring-primary'
+                'flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                isDragging && cat.id === dragTargetFolderId && 'ring-2 ring-primary'
               )}
             >
+              {/* The coloured dot is what tells folders apart, as Paste does. */}
+              <span
+                data-el="folder-dot"
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{
+                  backgroundColor: folderDotColor(
+                    cat.name,
+                    'color' in cat ? (cat.color as string | null) : null
+                  ),
+                }}
+              />
               {/* The synthetic "All Clips" pill carries no `is_system`, hence the `in`. */}
-              {'is_system' in cat && cat.is_system ? t('folders.pinned') : cat.name}
+              <span>{'is_system' in cat && cat.is_system ? t('folders.pinned') : cat.name}</span>
               {/* Show count badge if defined and > 0 */}
               {cat.count !== undefined && cat.count > 0 && (
-                <span className="ml-2 text-[0.625rem] opacity-70">{cat.count}</span>
+                <span className="text-[0.625rem] opacity-70">{cat.count}</span>
               )}
             </button>
           );

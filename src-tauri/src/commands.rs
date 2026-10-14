@@ -962,6 +962,17 @@ pub async fn move_to_folder(
     Ok(())
 }
 
+/// Folders store a colour as `#rrggbb`, or nothing for the automatic one derived from the
+/// folder name. Anything malformed is dropped rather than stored, because the value ends
+/// up in a style attribute.
+pub(crate) fn normalise_folder_color(color: Option<String>) -> Option<String> {
+    let value = color?.trim().to_ascii_lowercase();
+    let is_hex = value.len() == 7
+        && value.starts_with('#')
+        && value[1..].chars().all(|c| c.is_ascii_hexdigit());
+    is_hex.then_some(value)
+}
+
 #[tauri::command]
 pub async fn create_folder(
     name: String,
@@ -982,6 +993,9 @@ pub async fn create_folder(
     if exists.is_some() {
         return Err("A folder with this name already exists".to_string());
     }
+
+    // Normalised once, so the row and the caller see the same value.
+    let color = normalise_folder_color(color);
 
     let id = sqlx::query(r#"INSERT INTO folders (name, icon, color) VALUES (?, ?, ?)"#)
         .bind(&name)
@@ -1098,6 +1112,28 @@ pub async fn rename_folder(
         .map_err(|e| e.to_string())?;
 
     // Emit event so main window knows to refresh
+    let _ = window.app_handle().emit("clipboard-change", ());
+    Ok(())
+}
+
+/// Sets the colour a folder is drawn with, or clears it back to the automatic one.
+#[tauri::command]
+pub async fn set_folder_color(
+    id: String,
+    color: Option<String>,
+    db: tauri::State<'_, Arc<Database>>,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
+    let pool = &db.pool;
+    let folder_id: i64 = id.parse().map_err(|_| "Invalid folder ID")?;
+
+    sqlx::query("UPDATE folders SET color = ? WHERE id = ?")
+        .bind(normalise_folder_color(color))
+        .bind(folder_id)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
     let _ = window.app_handle().emit("clipboard-change", ());
     Ok(())
 }
@@ -2003,5 +2039,29 @@ mod tests {
         let db = test_db().await;
 
         assert!(store_clip_content(&db.pool, "nope", "hello").await.is_err());
+    }
+
+    #[test]
+    fn a_folder_colour_is_stored_as_lowercase_hex() {
+        assert_eq!(
+            normalise_folder_color(Some("#AABBCC".to_string())),
+            Some("#aabbcc".to_string())
+        );
+        assert_eq!(
+            normalise_folder_color(Some("  #a1b2c3 ".to_string())),
+            Some("#a1b2c3".to_string())
+        );
+    }
+
+    #[test]
+    fn a_malformed_folder_colour_is_dropped() {
+        for bad in ["", "red", "#fff", "#12345g", "rgb(1,2,3)", "#1234567"] {
+            assert_eq!(
+                normalise_folder_color(Some(bad.to_string())),
+                None,
+                "a colour of {bad:?} should not be stored"
+            );
+        }
+        assert_eq!(normalise_folder_color(None), None);
     }
 }
