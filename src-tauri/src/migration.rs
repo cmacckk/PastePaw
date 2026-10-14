@@ -69,6 +69,10 @@ fn legacy_settings_dir() -> Option<PathBuf> {
 /// `current_data_dir` is normally created by the caller *after* this runs, so that a
 /// migration can move the whole legacy directory rather than merge into a fresh one.
 pub fn migrate_data(current_data_dir: &Path) -> MigrationReport {
+    if crate::data_dir_is_overridden() {
+        return MigrationReport::default();
+    }
+
     let Some(legacy) = legacy_data_dir() else {
         return MigrationReport::default();
     };
@@ -101,6 +105,10 @@ pub fn log_report() {
 
 /// Moves `settings.json` into the directory belonging to the new identifier.
 pub fn migrate_settings(current_settings_dir: &Path) -> bool {
+    if crate::data_dir_is_overridden() {
+        return false;
+    }
+
     let Some(legacy) = legacy_settings_dir() else {
         return false;
     };

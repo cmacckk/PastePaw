@@ -857,11 +857,25 @@ pub fn animate_window_hide(
 }
 
 pub fn get_data_dir() -> std::path::PathBuf {
+    if let Some(dir) = std::env::var_os(constants::DATA_DIR_ENV) {
+        if !dir.is_empty() {
+            return std::path::PathBuf::from(dir);
+        }
+    }
+
     let current_dir = std::env::current_dir().unwrap_or(std::path::PathBuf::from("."));
     match dirs::data_dir() {
         Some(path) => path.join(constants::APP_DIR_NAME),
         None => current_dir.join(constants::APP_DIR_NAME),
     }
+}
+
+/// Whether this run keeps its data outside the location an installed copy uses.
+///
+/// The migration stands down in that case: a development run must not move the files that
+/// belong to the installed app.
+pub(crate) fn data_dir_is_overridden() -> bool {
+    std::env::var_os(constants::DATA_DIR_ENV).is_some_and(|dir| !dir.is_empty())
 }
 
 pub fn get_monitor_at_cursor(window: &tauri::WebviewWindow) -> Option<tauri::Monitor> {
