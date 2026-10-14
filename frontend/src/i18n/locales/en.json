@@ -184,7 +184,10 @@
     "updateAvailable": "Update available! Version {{version}}",
     "noUpdates": "You're on the latest version",
     "updateError": "Failed to check for updates",
-    "copyContent": "Copy content"
+    "copyContent": "Copy content",
+    "folderColor": "Folder colour",
+    "folderColorFailed": "Could not save the folder colour",
+    "folderColorAuto": "Automatic"
   },
   "ai": {
     "processing": "Processing with AI...",

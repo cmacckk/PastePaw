@@ -663,9 +663,9 @@ function App() {
     onPasteIndex: handlePasteIndex,
   });
 
-  const handleCreateFolder = async (name: string) => {
+  const handleCreateFolder = async (name: string, color: string | null = null) => {
     try {
-      await invoke('create_folder', { name, icon: null, color: null });
+      await invoke('create_folder', { name, icon: null, color });
       await loadFolders();
     } catch (error) {
       console.error('Failed to create folder:', error);
@@ -739,9 +739,9 @@ function App() {
   }, []);
 
   // Updated Create Folder to handle Rename
-  const handleCreateOrRenameFolder = async (name: string) => {
+  const handleCreateOrRenameFolder = async (name: string, color?: string | null) => {
     if (folderModalMode === 'create') {
-      await handleCreateFolder(name);
+      await handleCreateFolder(name, color ?? null);
       toast.success(t('folders.folderCreated', { name }));
       setShowAddFolderModal(false);
       setNewFolderName('');
@@ -920,6 +920,7 @@ function App() {
                 setNewFolderName('');
               }}
               onSubmit={handleCreateOrRenameFolder}
+              showColor={folderModalMode === 'create'}
             />
 
             {/*

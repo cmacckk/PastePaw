@@ -16,6 +16,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from 'react-i18next';
+import { FOLDER_DOT_COLORS, folderDotColor } from '../lib/folderColors';
 import { LANGUAGE_STORAGE_KEY } from '../i18n/config';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
@@ -64,6 +65,7 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
   const [newFolderName, setNewFolderName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [colorFolderId, setColorFolderId] = useState<string | null>(null);
 
   // Every font family this machine has. It comes from the backend, so the pickers offer
   // what is really installed instead of a short hardcoded list.
@@ -299,6 +301,17 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
   };
 
   // Folder Management Functions
+  const handleSetFolderColor = async (id: string, color: string | null) => {
+    try {
+      await invoke('set_folder_color', { id, color });
+      setColorFolderId(null);
+      await loadFolders();
+    } catch (error) {
+      console.error('Failed to set the folder colour:', error);
+      toast.error(t('settings.folderColorFailed'));
+    }
+  };
+
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     try {
@@ -1035,7 +1048,7 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                           .map((folder) => (
                             <div
                               key={folder.id}
-                              className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3"
                             >
                               {editingFolderId === folder.id ? (
                                 <div className="flex flex-1 items-center gap-2">
@@ -1066,7 +1079,13 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                               ) : (
                                 <>
                                   <div className="flex items-center gap-3">
-                                    <FolderIcon size={16} className="text-blue-400" />
+                                    <span
+                                      aria-hidden="true"
+                                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                      style={{
+                                        backgroundColor: folderDotColor(folder.name, folder.color),
+                                      }}
+                                    />
                                     <span className="text-sm font-medium">
                                       {folder.is_system ? t('folders.pinned') : folder.name}
                                     </span>
@@ -1075,6 +1094,17 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() =>
+                                        setColorFolderId(
+                                          colorFolderId === folder.id ? null : folder.id
+                                        )
+                                      }
+                                      className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                      title={t('settings.folderColor')}
+                                    >
+                                      <Palette size={14} />
+                                    </button>
                                     <button
                                       onClick={() => startRenameFolder(folder)}
                                       className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -1093,6 +1123,27 @@ export function SettingsPanel({ settings: initialSettings, onClose }: SettingsPa
                                     )}
                                   </div>
                                 </>
+                              )}
+                              {colorFolderId === folder.id && (
+                                <div className="flex w-full flex-wrap gap-1.5 border-t border-border pt-2">
+                                  {FOLDER_DOT_COLORS.map((option) => (
+                                    <button
+                                      key={option}
+                                      type="button"
+                                      aria-label={option}
+                                      onClick={() => handleSetFolderColor(folder.id, option)}
+                                      style={{ backgroundColor: option }}
+                                      className="h-5 w-5 rounded-full ring-1 ring-border transition-transform hover:scale-110"
+                                    />
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetFolderColor(folder.id, null)}
+                                    className="rounded-full border border-border px-2 text-[0.625rem] text-muted-foreground hover:bg-accent"
+                                  >
+                                    {t('settings.folderColorAuto')}
+                                  </button>
+                                </div>
                               )}
                             </div>
                           ))

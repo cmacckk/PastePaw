@@ -184,7 +184,10 @@
     "updateAvailable": "有可用更新！版本 {{version}}",
     "noUpdates": "您使用的是最新版本",
     "updateError": "检查更新失败",
-    "copyContent": "复制内容"
+    "copyContent": "复制内容",
+    "folderColor": "文件夹颜色",
+    "folderColorFailed": "无法保存文件夹颜色",
+    "folderColorAuto": "自动"
   },
   "ai": {
     "processing": "AI 处理中...",

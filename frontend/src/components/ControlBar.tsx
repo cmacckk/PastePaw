@@ -1,8 +1,18 @@
 import { FolderItem, SourceAppCount } from '../types';
-import { Search, Plus, MoreHorizontal, X, ArrowUpCircle, AlignLeft, Image, File } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  X,
+  ArrowUpCircle,
+  AlignLeft,
+  Image,
+  File,
+} from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { Select } from './ui/Select';
+import { folderDotColor } from '../lib/folderColors';
 
 interface ControlBarProps {
   folders: FolderItem[];
@@ -46,30 +56,6 @@ const CLIP_TYPE_FILTERS = [
 
 /// Colours for the folder dots. A folder keeps the colour it was given; the rest fall
 /// back to a stable colour derived from the name, so a folder never changes colour.
-const FOLDER_DOT_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#14b8a6',
-  '#06b6d4',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#64748b',
-];
-
-function folderDotColor(name: string, color?: string | null) {
-  if (color) {
-    return color;
-  }
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return FOLDER_DOT_COLORS[Math.abs(hash) % FOLDER_DOT_COLORS.length];
-}
-
 export function ControlBar({
   folders,
   selectedFolder,
@@ -110,7 +96,6 @@ export function ControlBar({
   const handleMouseLeave = () => {
     onDragLeave();
   };
-
 
   return (
     <div data-el="control-bar" className="drag-area flex items-end gap-4 px-6 pb-0" style={style}>
@@ -299,10 +284,10 @@ export function ControlBar({
         {updateAvailable && (
           <button
             onClick={onMoreClick}
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground relative group"
+            className="group relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title={t('settings.updateAvailable', { version: updateAvailable.version })}
           >
-            <div className="absolute top-[6px] right-[6px] h-2 w-2 rounded-full border-2 border-background bg-blue-500 z-10 animate-pulse"></div>
+            <div className="absolute right-[6px] top-[6px] z-10 h-2 w-2 animate-pulse rounded-full border-2 border-background bg-blue-500"></div>
             <ArrowUpCircle size={20} />
           </button>
         )}
